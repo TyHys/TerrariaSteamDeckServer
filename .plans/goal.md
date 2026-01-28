@@ -1,0 +1,3 @@
+TerrariaSteamDeckServer is a repository intended to service as a code repository for quickly standing up dedicated Terraria servers ran on Steam Deck devices.
+
+The end goal of this project will be a fully functioning repository which can be used to setup dedicated Terraria servers. It must also extensively and comprehensively document all relevant information to it's readme or any additional documentation deemed necessary.

@@ -1,0 +1,84 @@
+# TerrariaSteamDeckServer Docker Compose Configuration
+# Optimized for Steam Deck deployment with Supervisor process management
+
+version: '3.8'
+
+services:
+  terraria:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: terraria-server
+    restart: unless-stopped
+    
+    # Port mappings
+    ports:
+      - "7777:7777/tcp"    # Terraria game server
+    
+    # Persistent volumes
+    volumes:
+      - terraria-worlds:/terraria/worlds      # World files
+      - terraria-config:/terraria/config      # Configuration files
+      - terraria-logs:/terraria/logs          # Server logs
+    
+    # Environment variables (override defaults)
+    environment:
+      # Game configuration
+      - WORLD_NAME=${WORLD_NAME:-world}
+      - WORLD_SIZE=${WORLD_SIZE:-2}           # 1=Small, 2=Medium, 3=Large
+      - MAX_PLAYERS=${MAX_PLAYERS:-8}
+      - SERVER_PORT=${SERVER_PORT:-7777}
+      - SERVER_PASSWORD=${SERVER_PASSWORD:-}
+      - MOTD=${MOTD:-Welcome to the Terraria Server!}
+      - DIFFICULTY=${DIFFICULTY:-0}           # 0=Normal, 1=Expert, 2=Master, 3=Journey
+      - AUTOCREATE=${AUTOCREATE:-2}           # Auto-create world: 0=off, 1=small, 2=medium, 3=large
+      - SECURE=${SECURE:-1}                   # Anti-cheat: 0=off, 1=on
+      - LANGUAGE=${LANGUAGE:-en-US}
+      
+      # Process management configuration
+      - RESTART_DELAY=${RESTART_DELAY:-5}           # Initial restart delay in seconds
+      - RESTART_DELAY_MAX=${RESTART_DELAY_MAX:-60}  # Maximum restart delay in seconds
+      - RESTART_DELAY_MULTIPLIER=${RESTART_DELAY_MULTIPLIER:-2}  # Backoff multiplier
+    
+    # Resource limits (adjust based on Steam Deck resources)
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    
+    # Logging configuration (Docker-level logging)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Standard input for server commands
+    stdin_open: true
+    tty: true
+    
+    # Graceful shutdown configuration
+    stop_grace_period: 30s
+
+# Named volumes for data persistence
+volumes:
+  terraria-worlds:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/worlds
+  terraria-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/config
+  terraria-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/logs

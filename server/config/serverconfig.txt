@@ -1,0 +1,82 @@
+# Terraria Server Configuration
+# This file is auto-generated but can be manually edited
+# Environment variables will override these settings when container starts
+
+#---------------------------------------------------------------
+# World Settings
+#---------------------------------------------------------------
+
+# World file name (without .wld extension)
+# The world will be loaded from /terraria/worlds/
+world=/terraria/worlds/${WORLD_NAME}.wld
+
+# Auto-create world if it doesn't exist
+# Options: 1 (small), 2 (medium), 3 (large)
+autocreate=${AUTOCREATE}
+
+# World name for auto-created worlds
+worldname=${WORLD_NAME}
+
+# World difficulty for auto-created worlds
+# Options: 0 (normal), 1 (expert), 2 (master), 3 (journey)
+difficulty=${DIFFICULTY}
+
+#---------------------------------------------------------------
+# Server Settings
+#---------------------------------------------------------------
+
+# Maximum number of players
+maxplayers=${MAX_PLAYERS}
+
+# Server port
+port=${SERVER_PORT}
+
+# Server password (leave empty for no password)
+password=${SERVER_PASSWORD}
+
+# Message of the Day
+motd=${MOTD}
+
+# World path (directory containing world files)
+worldpath=/terraria/worlds/
+
+#---------------------------------------------------------------
+# Security Settings
+#---------------------------------------------------------------
+
+# Enable anti-cheat protection
+# Options: 0 (disabled), 1 (enabled)
+secure=${SECURE}
+
+# Language setting
+language=${LANGUAGE}
+
+#---------------------------------------------------------------
+# Advanced Settings (typically left as defaults)
+#---------------------------------------------------------------
+
+# Priority of the server process (0-5, 0=realtime, 5=idle)
+# Recommended: 1 (high) for dedicated servers
+priority=1
+
+# Reduce enemy spawning when few players are online
+# Options: 0 (disabled), 1 (enabled)
+npcstream=60
+
+# Journey mode power permissions (only applies to Journey worlds)
+# Options: 0 (locked), 1 (changeable), 2 (unlocked)
+journeypermission_time_setfrozen=2
+journeypermission_time_setdawn=2
+journeypermission_time_setnoon=2
+journeypermission_time_setdusk=2
+journeypermission_time_setmidnight=2
+journeypermission_godmode=2
+journeypermission_wind_setstrength=2
+journeypermission_rain_setstrength=2
+journeypermission_time_setspeed=2
+journeypermission_rain_setfrozen=2
+journeypermission_wind_setfrozen=2
+journeypermission_increaseplacementrange=2
+journeypermission_setdifficulty=2
+journeypermission_biomespread_setfrozen=2
+journeypermission_setspawnrate=2
