@@ -1,68 +1,96 @@
 # TerrariaSteamDeckServer Docker Compose Configuration
-# Optimized for Steam Deck deployment with Supervisor process management
-
-version: '3.8'
+# Optimized for Steam Deck deployment
+# Version 8.0.0 - Production Ready
 
 services:
   terraria:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    image: terraria-steamdeck-server:latest
     container_name: terraria-server
     restart: unless-stopped
+    hostname: terraria-server
     
     # Port mappings
     ports:
-      - "7777:7777/tcp"    # Terraria game server
+      - "${SERVER_PORT:-7777}:7777/tcp"    # Terraria game server
+      - "${API_PORT:-8080}:8080/tcp"       # Web management interface
     
     # Persistent volumes
     volumes:
       - terraria-worlds:/terraria/worlds      # World files
       - terraria-config:/terraria/config      # Configuration files
       - terraria-logs:/terraria/logs          # Server logs
+      - terraria-backups:/terraria/backups    # World backups
     
-    # Environment variables (override defaults)
+    # Environment variables
     environment:
       # Game configuration
       - WORLD_NAME=${WORLD_NAME:-world}
       - WORLD_SIZE=${WORLD_SIZE:-2}           # 1=Small, 2=Medium, 3=Large
+      - WORLD_SEED=${WORLD_SEED:-}            # Optional: specific seed
       - MAX_PLAYERS=${MAX_PLAYERS:-8}
-      - SERVER_PORT=${SERVER_PORT:-7777}
+      - SERVER_PORT=7777                      # Internal port (always 7777)
       - SERVER_PASSWORD=${SERVER_PASSWORD:-}
       - MOTD=${MOTD:-Welcome to the Terraria Server!}
       - DIFFICULTY=${DIFFICULTY:-0}           # 0=Normal, 1=Expert, 2=Master, 3=Journey
-      - AUTOCREATE=${AUTOCREATE:-2}           # Auto-create world: 0=off, 1=small, 2=medium, 3=large
-      - SECURE=${SECURE:-1}                   # Anti-cheat: 0=off, 1=on
+      - AUTOCREATE=${AUTOCREATE:-2}           # Auto-create world size
+      - SECURE=${SECURE:-1}                   # Anti-cheat
       - LANGUAGE=${LANGUAGE:-en-US}
       
-      # Process management configuration
-      - RESTART_DELAY=${RESTART_DELAY:-5}           # Initial restart delay in seconds
-      - RESTART_DELAY_MAX=${RESTART_DELAY_MAX:-60}  # Maximum restart delay in seconds
-      - RESTART_DELAY_MULTIPLIER=${RESTART_DELAY_MULTIPLIER:-2}  # Backoff multiplier
+      # Process management
+      - RESTART_DELAY=${RESTART_DELAY:-5}
+      - RESTART_DELAY_MAX=${RESTART_DELAY_MAX:-60}
+      - RESTART_DELAY_MULTIPLIER=${RESTART_DELAY_MULTIPLIER:-2}
+      
+      # Backup configuration
+      - BACKUP_ENABLED=${BACKUP_ENABLED:-true}
+      - BACKUP_INTERVAL=${BACKUP_INTERVAL:-30}
+      - BACKUP_RETENTION=${BACKUP_RETENTION:-48}
+      - BACKUP_ON_STARTUP=${BACKUP_ON_STARTUP:-false}
+      - BACKUP_COMPRESSION=${BACKUP_COMPRESSION:-gzip}
+      
+      # Web API configuration
+      - API_HOST=0.0.0.0
+      - API_PORT=8080
+      - API_USERNAME=${API_USERNAME:-admin}
+      - API_PASSWORD=${API_PASSWORD:?API_PASSWORD is required}
+      - API_TOKEN_EXPIRY=${API_TOKEN_EXPIRY:-86400}
+      - API_DEBUG=${API_DEBUG:-false}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
     
-    # Resource limits (adjust based on Steam Deck resources)
+    # Resource limits (optimized for Steam Deck)
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 1536M
         reservations:
-          memory: 512M
+          memory: 768M
     
-    # Logging configuration (Docker-level logging)
+    # Logging configuration
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
     
-    # Standard input for server commands
+    # Terminal access for server commands
     stdin_open: true
     tty: true
     
-    # Graceful shutdown configuration
-    stop_grace_period: 30s
+    # Graceful shutdown (allow world save)
+    stop_grace_period: 45s
+    
+    # Health check using comprehensive script
+    healthcheck:
+      test: ["/terraria/scripts/healthcheck.sh"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 90s
 
-# Named volumes for data persistence
+# Named volumes with local bind mounts for easy access
 volumes:
   terraria-worlds:
     driver: local
@@ -82,3 +110,9 @@ volumes:
       type: none
       o: bind
       device: ${PWD}/data/logs
+  terraria-backups:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/backups

@@ -9,6 +9,7 @@ set -e
 LOG_DIR="/terraria/logs"
 WORLD_DIR="/terraria/worlds"
 CONFIG_DIR="/terraria/config"
+BACKUP_DIR="${BACKUP_DIR:-/terraria/backups}"
 
 #---------------------------------------------------------------
 # Logging helper
@@ -28,10 +29,10 @@ init_directories() {
     log "Initializing directories..."
     
     # Create directories if they don't exist
-    mkdir -p "${LOG_DIR}" "${WORLD_DIR}" "${CONFIG_DIR}"
+    mkdir -p "${LOG_DIR}" "${WORLD_DIR}" "${CONFIG_DIR}" "${BACKUP_DIR}"
     
     # Set proper ownership (we start as root, supervisor switches to terraria)
-    chown -R terraria:terraria "${LOG_DIR}" "${WORLD_DIR}" "${CONFIG_DIR}"
+    chown -R terraria:terraria "${LOG_DIR}" "${WORLD_DIR}" "${CONFIG_DIR}" "${BACKUP_DIR}"
     
     # Ensure scripts are executable
     chmod +x /terraria/scripts/*.sh
@@ -61,10 +62,15 @@ display_banner() {
     echo ""
     echo "╔═══════════════════════════════════════════════════════════╗"
     echo "║       Terraria Dedicated Server for Steam Deck            ║"
-    echo "║                                                           ║"
-    echo "║  Process Manager: Supervisor                              ║"
-    echo "║  Auto-restart:    Enabled                                 ║"
-    echo "║  Log Rotation:    Enabled                                 ║"
+    echo "║                       v8.0.0                              ║"
+    echo "╠═══════════════════════════════════════════════════════════╣"
+    echo "║  Process Manager:   Supervisor                            ║"
+    echo "║  Auto-restart:      Enabled                               ║"
+    echo "║  Log Rotation:      Enabled                               ║"
+    echo "║  Backup Scheduler:  ${BACKUP_ENABLED:-true}                               ║"
+    echo "╠═══════════════════════════════════════════════════════════╣"
+    echo "║  Web Interface:     http://localhost:${API_PORT:-8080}               ║"
+    echo "║  Game Server:       Port ${SERVER_PORT:-7777}                                ║"
     echo "╚═══════════════════════════════════════════════════════════╝"
     echo ""
 }
@@ -76,13 +82,22 @@ display_config() {
     log "========================================"
     log "Configuration Summary"
     log "========================================"
-    log "WORLD_NAME:     ${WORLD_NAME:-world}"
-    log "MAX_PLAYERS:    ${MAX_PLAYERS:-8}"
-    log "SERVER_PORT:    ${SERVER_PORT:-7777}"
-    log "DIFFICULTY:     ${DIFFICULTY:-0}"
-    log "AUTOCREATE:     ${AUTOCREATE:-2}"
-    log "SECURE:         ${SECURE:-1}"
-    log "RESTART_DELAY:  ${RESTART_DELAY:-5}s"
+    log "WORLD_NAME:       ${WORLD_NAME:-world}"
+    log "MAX_PLAYERS:      ${MAX_PLAYERS:-8}"
+    log "SERVER_PORT:      ${SERVER_PORT:-7777}"
+    log "DIFFICULTY:       ${DIFFICULTY:-0}"
+    log "AUTOCREATE:       ${AUTOCREATE:-2}"
+    log "SECURE:           ${SECURE:-1}"
+    log "RESTART_DELAY:    ${RESTART_DELAY:-5}s"
+    log "----------------------------------------"
+    log "BACKUP_ENABLED:   ${BACKUP_ENABLED:-true}"
+    log "BACKUP_INTERVAL:  ${BACKUP_INTERVAL:-30} minutes"
+    log "BACKUP_RETENTION: ${BACKUP_RETENTION:-48} backups"
+    log "----------------------------------------"
+    log "API_HOST:         ${API_HOST:-0.0.0.0}"
+    log "API_PORT:         ${API_PORT:-8080}"
+    log "API_USERNAME:     ${API_USERNAME:-admin}"
+    log "API_PASSWORD:     $([ -n "${API_PASSWORD}" ] && echo "[SET]" || echo "[NOT SET - REQUIRED]")"
     log "========================================"
 }
 
