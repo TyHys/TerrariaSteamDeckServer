@@ -1,13 +1,13 @@
 # TerrariaSteamDeckServer Dockerfile
 # Multi-stage build optimized for size and performance
-# Runs Terraria Dedicated Server with web management interface
+# Runs Terraria Dedicated Server with automated backups
 
 #===============================================================
 # Stage 1: Download and extract Terraria server
 #===============================================================
 FROM debian:bookworm-slim AS terraria-download
 
-ARG TERRARIA_VERSION=1449
+ARG TERRARIA_VERSION=1453
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
@@ -23,32 +23,16 @@ RUN wget -q "https://terraria.org/api/download/pc-dedicated-server/terraria-serv
     && rm -rf /tmp/*
 
 #===============================================================
-# Stage 2: Build Python virtual environment
-#===============================================================
-FROM debian:bookworm-slim AS python-build
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    python3-pip \
-    python3-venv \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /build
-COPY web/backend/requirements.txt .
-RUN python3 -m venv /venv && \
-    /venv/bin/pip install --no-cache-dir -r requirements.txt
-
-#===============================================================
-# Stage 3: Final runtime image
+# Stage 2: Final runtime image
 #===============================================================
 FROM debian:bookworm-slim
 
 LABEL maintainer="TerrariaSteamDeckServer"
 LABEL description="Terraria Dedicated Server optimized for Steam Deck"
-LABEL version="8.0.0"
+LABEL version="10.0.0"
 
 # Environment variables for game configuration
-ENV TERRARIA_VERSION=1449
+ENV TERRARIA_VERSION=1453
 ENV WORLD_NAME="world"
 ENV WORLD_SIZE="2"
 ENV MAX_PLAYERS="8"
@@ -75,15 +59,6 @@ ENV BACKUP_COMPRESSION="gzip"
 ENV BACKUP_DIR="/terraria/backups"
 ENV WORLD_DIR="/terraria/worlds"
 
-# Environment variables for web API
-ENV API_HOST="0.0.0.0"
-ENV API_PORT="8080"
-ENV API_USERNAME="admin"
-ENV API_PASSWORD=""
-ENV API_TOKEN_EXPIRY="86400"
-ENV API_DEBUG="false"
-ENV CORS_ORIGINS="*"
-
 # Install minimal runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
@@ -91,8 +66,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     supervisor \
     logrotate \
     cron \
-    python3 \
-    python3-venv \
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean \
@@ -106,21 +79,19 @@ RUN mkdir -p \
     /terraria/logs \
     /terraria/scripts \
     /terraria/backups \
-    /terraria/web/frontend
+    /terraria/defaults
 
 # Copy Terraria server from download stage
 COPY --from=terraria-download /terraria-server/ /terraria/server/
-
-# Copy Python virtual environment from build stage
-COPY --from=python-build /venv /terraria/web/venv
 
 # Set working directory
 WORKDIR /terraria
 
 # Copy configuration files
-COPY server/config/serverconfig.txt /terraria/config/serverconfig.txt
-COPY server/config/supervisord.conf /terraria/config/supervisord.conf
-COPY server/config/logrotate.conf /terraria/config/logrotate.conf
+# Note: supervisord.conf goes to /etc to avoid being overwritten by volume mounts
+COPY server/config/serverconfig.txt /terraria/defaults/serverconfig.txt
+COPY server/config/supervisord.conf /etc/supervisor/conf.d/terraria.conf
+COPY server/config/logrotate.conf /terraria/defaults/logrotate.conf
 
 # Copy scripts
 COPY server/scripts/ /terraria/scripts/
@@ -128,25 +99,22 @@ COPY server/scripts/ /terraria/scripts/
 # Make all scripts executable
 RUN chmod +x /terraria/scripts/*.sh
 
-# Copy web backend and frontend
-COPY web/backend/ /terraria/web/
-COPY web/frontend/ /terraria/web/frontend/
-
 # Create non-root user for the Terraria server process
+# Also create .local/share/Terraria for server data (favorites, etc.)
 RUN useradd -m -d /terraria -s /bin/bash terraria \
-    && chown -R terraria:terraria /terraria/worlds /terraria/logs /terraria/backups /terraria/config
+    && mkdir -p /terraria/.local/share/Terraria \
+    && chown -R terraria:terraria /terraria/worlds /terraria/logs /terraria/backups /terraria/config /terraria/.local
 
 # Set up logrotate cron job
 RUN echo "0 * * * * /usr/sbin/logrotate /etc/logrotate.d/terraria" >> /etc/crontab
 
-# Expose ports
+# Expose game port
 EXPOSE 7777/tcp
-EXPOSE 8080/tcp
 
 # Define volumes for persistence
 VOLUME ["/terraria/worlds", "/terraria/config", "/terraria/logs", "/terraria/backups"]
 
-# Enhanced health check - verifies Terraria server, API, and supervisor
+# Health check - verifies Terraria server and supervisor
 HEALTHCHECK --interval=30s --timeout=15s --start-period=90s --retries=3 \
     CMD /terraria/scripts/healthcheck.sh || exit 1
 

@@ -88,7 +88,8 @@ list_worlds() {
     printf "%-30s %-12s %-20s\n" "NAME" "SIZE" "LAST MODIFIED"
     printf "%s\n" "--------------------------------------------------------------"
     
-    for world in "${WORLD_DIR}"/*.wld 2>/dev/null; do
+    shopt -s nullglob 2>/dev/null || true
+    for world in "${WORLD_DIR}"/*.wld; do
         if [ -f "$world" ]; then
             local name
             name=$(basename "$world" .wld)
@@ -106,6 +107,7 @@ list_worlds() {
             ((total_size += size_bytes))
         fi
     done
+    shopt -u nullglob 2>/dev/null || true
     
     if [ ${count} -eq 0 ]; then
         echo "No worlds found."

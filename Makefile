@@ -2,7 +2,7 @@
 # Simplified commands for building, running, and managing the server
 
 .PHONY: help build build-no-cache run start stop restart logs shell status health \
-        backup restore worlds clean clean-all setup test validate-env
+        backup restore worlds clean clean-all setup test
 
 # Default target
 .DEFAULT_GOAL := help
@@ -44,11 +44,12 @@ help:
 	@echo ""
 	@echo "  Testing:"
 	@echo "    make test            - Run full integration test"
-	@echo "    make validate-env    - Validate environment configuration"
 	@echo ""
 	@echo "  Cleanup:"
 	@echo "    make clean           - Stop and remove container"
 	@echo "    make clean-all       - Remove container, images, and volumes"
+	@echo ""
+	@echo "  NOTE: For full management, use ./server.sh instead"
 	@echo ""
 
 #---------------------------------------------------------------
@@ -60,9 +61,6 @@ setup:
 		cp .env.example .env; \
 		echo "Created .env file from template"; \
 		echo ""; \
-		echo "IMPORTANT: Edit .env and set API_PASSWORD before running!"; \
-		echo "  Example: API_PASSWORD=your_secure_password_here"; \
-		echo ""; \
 	else \
 		echo ".env file already exists"; \
 	fi
@@ -70,24 +68,10 @@ setup:
 	@echo "Created data directories"
 	@echo ""
 	@echo "Setup complete! Next steps:"
-	@echo "  1. Edit .env and set API_PASSWORD"
+	@echo "  1. (Optional) Edit .env to customize settings"
 	@echo "  2. Run 'make build' to build the image"
 	@echo "  3. Run 'make start' to start the server"
 	@echo ""
-
-validate-env:
-	@echo "Validating environment configuration..."
-	@if [ ! -f .env ]; then \
-		echo "ERROR: .env file not found. Run 'make setup' first."; \
-		exit 1; \
-	fi
-	@. ./.env && \
-	if [ -z "$$API_PASSWORD" ]; then \
-		echo "ERROR: API_PASSWORD is not set in .env"; \
-		echo "Please edit .env and set a secure password."; \
-		exit 1; \
-	fi
-	@echo "Environment configuration is valid."
 
 #---------------------------------------------------------------
 # Build
@@ -103,19 +87,17 @@ build-no-cache:
 #---------------------------------------------------------------
 # Running
 #---------------------------------------------------------------
-run: validate-env build
+run: build
 	@echo "Starting server..."
 	docker compose -f $(COMPOSE_FILE) up
 
-start: validate-env
+start:
 	@echo "Starting server (detached)..."
 	docker compose -f $(COMPOSE_FILE) up -d
 	@echo ""
-	@echo "Server starting! Access the web interface at:"
-	@echo "  http://localhost:8080"
+	@echo "Server starting! Use './server.sh status' to check status."
 	@echo ""
 	@echo "Run 'make logs' to follow the server logs."
-	@echo "Run 'make status' to check the server status."
 
 stop:
 	@echo "Stopping server..."
@@ -186,7 +168,7 @@ worlds:
 #---------------------------------------------------------------
 # Testing
 #---------------------------------------------------------------
-test: validate-env
+test:
 	@echo ""
 	@echo "╔═══════════════════════════════════════════════════════════╗"
 	@echo "║           Running Integration Tests                       ║"
@@ -213,27 +195,7 @@ test: validate-env
 		exit 1; \
 	fi
 	@echo ""
-	@echo "5. Testing API endpoints..."
-	@API_STATUS=$$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/status); \
-	if [ "$$API_STATUS" = "200" ]; then \
-		echo "   ✓ API is responding"; \
-	else \
-		echo "   ✗ API returned status $$API_STATUS"; \
-		docker compose -f $(COMPOSE_FILE) down; \
-		exit 1; \
-	fi
-	@echo ""
-	@echo "6. Testing web interface..."
-	@WEB_STATUS=$$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/); \
-	if [ "$$WEB_STATUS" = "200" ]; then \
-		echo "   ✓ Web interface is serving"; \
-	else \
-		echo "   ✗ Web interface returned status $$WEB_STATUS"; \
-		docker compose -f $(COMPOSE_FILE) down; \
-		exit 1; \
-	fi
-	@echo ""
-	@echo "7. Stopping container..."
+	@echo "5. Stopping container..."
 	@docker compose -f $(COMPOSE_FILE) down --quiet 2>/dev/null || docker compose -f $(COMPOSE_FILE) down
 	@echo "   ✓ Container stopped"
 	@echo ""

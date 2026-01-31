@@ -59,18 +59,10 @@ required_files=(
     "server/config/supervisord.conf"
     "server/config/serverconfig.txt"
     "server/config/logrotate.conf"
-    "web/backend/app.py"
-    "web/backend/config.py"
-    "web/backend/auth.py"
-    "web/backend/utils.py"
-    "web/backend/requirements.txt"
-    "web/frontend/index.html"
-    "web/frontend/css/styles.css"
-    "web/frontend/js/api.js"
-    "web/frontend/js/app.js"
     ".env.example"
     "Makefile"
     "README.md"
+    "server.sh"
     "docs/SETUP.md"
     "docs/CONFIGURATION.md"
     "docs/NETWORKING.md"
@@ -102,35 +94,13 @@ for script in "${PROJECT_DIR}"/server/scripts/*.sh; do
     fi
 done
 
-echo ""
-
-#---------------------------------------------------------------
-# Check Python syntax
-#---------------------------------------------------------------
-echo "Checking Python syntax..."
-
-if command -v python3 &> /dev/null; then
-    for pyfile in "${PROJECT_DIR}"/web/backend/*.py; do
-        if [ -f "$pyfile" ]; then
-            if python3 -m py_compile "$pyfile" 2>/dev/null; then
-                print_pass "Valid syntax: $(basename "$pyfile")"
-            else
-                print_fail "Invalid syntax: $(basename "$pyfile")"
-            fi
-        fi
-    done
-    
-    for pyfile in "${PROJECT_DIR}"/web/backend/routes/*.py; do
-        if [ -f "$pyfile" ]; then
-            if python3 -m py_compile "$pyfile" 2>/dev/null; then
-                print_pass "Valid syntax: $(basename "$pyfile")"
-            else
-                print_fail "Invalid syntax: $(basename "$pyfile")"
-            fi
-        fi
-    done
-else
-    print_warn "Python3 not found, skipping Python syntax check"
+# Check server.sh
+if [ -f "${PROJECT_DIR}/server.sh" ]; then
+    if bash -n "${PROJECT_DIR}/server.sh" 2>/dev/null; then
+        print_pass "Valid syntax: server.sh"
+    else
+        print_fail "Invalid syntax: server.sh"
+    fi
 fi
 
 echo ""
@@ -144,11 +114,6 @@ required_dirs=(
     "docker"
     "server/scripts"
     "server/config"
-    "web/backend"
-    "web/backend/routes"
-    "web/frontend"
-    "web/frontend/css"
-    "web/frontend/js"
     "data"
     "docs"
 )
@@ -168,12 +133,6 @@ echo ""
 #---------------------------------------------------------------
 echo "Checking .env.example configuration..."
 
-if grep -q "API_PASSWORD" "${PROJECT_DIR}/.env.example"; then
-    print_pass "API_PASSWORD documented in .env.example"
-else
-    print_fail "API_PASSWORD missing from .env.example"
-fi
-
 if grep -q "WORLD_NAME" "${PROJECT_DIR}/.env.example"; then
     print_pass "WORLD_NAME documented in .env.example"
 else
@@ -186,10 +145,16 @@ else
     print_fail "BACKUP_ENABLED missing from .env.example"
 fi
 
+if grep -q "SERVER_PORT" "${PROJECT_DIR}/.env.example"; then
+    print_pass "SERVER_PORT documented in .env.example"
+else
+    print_fail "SERVER_PORT missing from .env.example"
+fi
+
 echo ""
 
 #---------------------------------------------------------------
-# Check Dockerfile health check
+# Check Dockerfile
 #---------------------------------------------------------------
 echo "Checking Dockerfile..."
 
@@ -203,12 +168,6 @@ if grep -q "EXPOSE 7777" "${PROJECT_DIR}/docker/Dockerfile"; then
     print_pass "Port 7777 exposed in Dockerfile"
 else
     print_fail "Port 7777 not exposed in Dockerfile"
-fi
-
-if grep -q "EXPOSE 8080" "${PROJECT_DIR}/docker/Dockerfile"; then
-    print_pass "Port 8080 exposed in Dockerfile"
-else
-    print_fail "Port 8080 not exposed in Dockerfile"
 fi
 
 echo ""

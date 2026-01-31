@@ -1,11 +1,11 @@
 # Terraria Steam Deck Server
 
-A Docker-containerized Terraria dedicated server optimized for Steam Deck devices. Features a modern web management interface, automated backups, and robust process management.
+A Docker-containerized Terraria dedicated server optimized for Steam Deck devices. Features automated backups, robust process management, and easy CLI-based management.
 
 ## Features
 
-- **Terraria Dedicated Server** - Official Terraria server binary (v1449)
-- **Web Management Interface** - Beautiful dark-themed UI accessible from any browser
+- **Terraria Dedicated Server** - Official Terraria server binary (v1.4.5.3)
+- **CLI Management** - Simple command-line management via `./server.sh`
 - **Automated Backups** - Scheduled backups with configurable retention
 - **Process Management** - Automatic crash recovery with Supervisor
 - **Easy Configuration** - Environment variables for all settings
@@ -13,12 +13,30 @@ A Docker-containerized Terraria dedicated server optimized for Steam Deck device
 
 ## Quick Start
 
-### Prerequisites
+### One-Command Install (Recommended)
 
-- Docker and Docker Compose installed
-- Ports 7777 (game) and 8080 (web UI) available
+The install script checks all dependencies, installs Docker if needed, and launches the server:
 
-### Installation
+```bash
+./install.sh
+```
+
+The script will:
+- Detect if you're on Steam Deck
+- Install Docker if not present (with your permission)
+- Create configuration files
+- Build and start the server
+
+### Manual Installation
+
+If you prefer to install manually, follow these steps:
+
+#### Prerequisites
+
+- **Docker and Docker Compose** - See [Installing Docker on Steam Deck](#installing-docker-on-steam-deck) below
+- Port 7777 available for the game server
+
+#### Steps
 
 1. **Clone or download this repository**
 
@@ -31,31 +49,36 @@ cd TerrariaSteamDeckServer
 2. **Run setup**
 
 ```bash
-make setup
+# Create .env from template
+cp .env.example .env
+
+# Create data directories
+mkdir -p data/worlds data/backups data/logs data/config
 ```
 
-3. **Configure your password**
+3. **(Optional) Configure settings**
 
-Edit the `.env` file and set a secure password:
+Edit the `.env` file to customize server settings:
 
 ```bash
-# Required: Set this to a secure password
-API_PASSWORD=your_secure_password_here
+nano .env
 ```
 
-4. **Start the server**
+4. **Build and start the server**
 
 ```bash
-make start
+# Build the Docker image
+docker compose -f docker/docker-compose.yml build
+
+# Start the server
+docker compose -f docker/docker-compose.yml up -d
 ```
 
-5. **Access the web interface**
+Or use the management script:
 
-Open your browser to: `http://localhost:8080`
-
-Login with:
-- Username: `admin` (or your configured username)
-- Password: Your configured `API_PASSWORD`
+```bash
+./server.sh start
+```
 
 ### Connecting to the Game Server
 
@@ -63,7 +86,49 @@ Players can connect to your server at:
 - **Local**: `localhost:7777` or `your-ip:7777`
 - **Remote**: Requires port forwarding on your router (port 7777)
 
-## Commands
+## Management Script
+
+The `./server.sh` script provides all management functionality:
+
+```bash
+./server.sh help      # Show all commands
+./server.sh status    # Check server status
+./server.sh start     # Start the server
+./server.sh stop      # Stop the server
+./server.sh restart   # Restart the server
+./server.sh logs      # View server logs
+./server.sh backup    # Create a backup
+./server.sh backups   # List all backups
+./server.sh restore <backup-file>  # Restore from backup
+./server.sh save      # Save the world
+./server.sh say "message"  # Broadcast to players
+```
+
+### Full Command Reference
+
+| Command | Description |
+|---------|-------------|
+| `./server.sh start` | Start the server container |
+| `./server.sh stop` | Stop the server container |
+| `./server.sh restart` | Restart the server container |
+| `./server.sh status` | Show server status, worlds, and info |
+| `./server.sh save` | Save the world (crash protection) |
+| `./server.sh say <message>` | Broadcast a message to all players |
+| `./server.sh command <cmd>` | Send any Terraria server command |
+| `./server.sh backup [world]` | Create a backup (all or specific world) |
+| `./server.sh restore <file>` | Restore from a backup file |
+| `./server.sh backups` | List all available backups |
+| `./server.sh logs [lines]` | Show container logs (default: 100) |
+| `./server.sh livelogs` | Follow container logs in real-time |
+| `./server.sh console` | Attach to Terraria server console |
+| `./server.sh shell` | Open a bash shell in the container |
+| `./server.sh exec <cmd>` | Execute a command in the container |
+| `./server.sh update` | Rebuild the container image |
+| `./server.sh help` | Show all available commands |
+
+### Make Commands (if installed)
+
+If you have `make` installed, you can use these shortcuts:
 
 | Command | Description |
 |---------|-------------|
@@ -105,25 +170,7 @@ All configuration is done via environment variables in the `.env` file.
 | `BACKUP_INTERVAL` | `30` | Minutes between backups |
 | `BACKUP_RETENTION` | `48` | Number of backups to keep |
 
-### Web API Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `API_USERNAME` | `admin` | Web interface username |
-| `API_PASSWORD` | *(required)* | Web interface password |
-| `API_PORT` | `8080` | Web interface port |
-
 See `.env.example` for all available options.
-
-## Web Interface
-
-The web interface provides:
-
-- **Dashboard** - Server status, controls, quick info
-- **Worlds** - Create, copy, delete worlds
-- **Backups** - Manual backups, restore, cleanup
-- **Configuration** - All server settings
-- **Logs** - Real-time log viewer
 
 ## Architecture
 
@@ -131,13 +178,12 @@ The web interface provides:
 ┌─────────────────────────────────────────────────────────┐
 │                    Docker Container                      │
 │  ┌─────────────────┐  ┌─────────────────────────────┐   │
-│  │ Terraria Server │  │ Web Interface (Flask API)   │   │
-│  │   (Port 7777)   │  │        (Port 8080)          │   │
+│  │ Terraria Server │  │      Backup Scheduler       │   │
+│  │   (Port 7777)   │  │    (Automated Backups)      │   │
 │  └─────────────────┘  └─────────────────────────────┘   │
-│  ┌─────────────────┐  ┌─────────────────────────────┐   │
-│  │ Supervisor      │  │      Backup Scheduler       │   │
-│  │ (Process Mgmt)  │  │    (Automated Backups)      │   │
-│  └─────────────────┘  └─────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │              Supervisor (Process Mgmt)          │    │
+│  └─────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────┘
          │                        │
          ▼                        ▼
@@ -160,7 +206,6 @@ All data is stored in the `data/` directory:
 To allow players from outside your network:
 
 1. Forward port **7777/TCP** on your router to your Steam Deck's IP
-2. Optionally forward port **8080/TCP** for remote web management (not recommended for security)
 
 Consult your router's documentation for specific port forwarding instructions.
 
@@ -181,20 +226,15 @@ Quick fixes for common issues. For detailed troubleshooting, see [docs/TROUBLESH
 
 ### Server won't start
 
-1. Check logs: `make logs`
-2. Verify configuration: `make status`
-3. Ensure API_PASSWORD is set in `.env`
+1. Check logs: `./server.sh logs`
+2. Verify configuration: `./server.sh status`
+3. Check container health: `docker exec terraria-server /terraria/scripts/healthcheck.sh`
 
 ### Can't connect to game server
 
-1. Check if server is running: `make health`
+1. Check if server is running: `./server.sh status`
 2. Verify port 7777 is not blocked by firewall
 3. For remote players, ensure port 7777 is forwarded
-
-### Web interface not accessible
-
-1. Check if API is running: `curl http://localhost:8080/api/status`
-2. Verify port 8080 is not in use by another application
 
 ## Development
 
@@ -208,10 +248,9 @@ TerrariaSteamDeckServer/
 ├── server/
 │   ├── config/             # Server configurations
 │   └── scripts/            # Management scripts
-├── web/
-│   ├── backend/            # Flask REST API
-│   └── frontend/           # Web UI (HTML/CSS/JS)
 ├── data/                   # Persistent data (volumes)
+├── server.sh               # CLI management script
+├── install.sh              # Quick install script (Steam Deck)
 ├── Makefile                # Build/run commands
 └── .env.example            # Configuration template
 ```
@@ -219,14 +258,87 @@ TerrariaSteamDeckServer/
 ### Building from source
 
 ```bash
-make build-no-cache
+docker compose -f docker/docker-compose.yml build --no-cache
 ```
 
 ### Running tests
 
 ```bash
-make test
+./tests/validate.sh
 ```
+
+## Steam Deck Notes
+
+### Installing Docker on Steam Deck
+
+Steam Deck requires Docker to be installed manually. Run these commands in Konsole (Desktop Mode):
+
+```bash
+# 1. Disable read-only filesystem
+sudo steamos-readonly disable
+
+# 2. Initialize pacman keyring (first time only)
+sudo pacman-key --init
+sudo pacman-key --populate archlinux
+sudo pacman-key --populate holo
+
+# 3. Refresh package database and install Docker
+sudo pacman -Syy
+sudo pacman -S docker docker-compose --noconfirm
+
+# 4. Enable and start Docker service
+sudo systemctl enable docker
+sudo systemctl start docker
+
+# 5. Add your user to the docker group (avoids needing sudo for docker commands)
+sudo usermod -aG docker $USER
+
+# 6. Re-enable read-only filesystem (recommended)
+sudo steamos-readonly enable
+
+# 7. Log out and back in (or reboot) for group changes to take effect
+```
+
+After logging back in, verify Docker works:
+
+```bash
+docker --version
+docker run hello-world
+```
+
+> **Warning:** Packages installed via `pacman` may be removed during SteamOS updates. You may need to reinstall Docker after major updates. Your data in `data/` will be preserved.
+
+### Installing Make (Optional)
+
+If you prefer using `make` commands, you can install it on Steam Deck:
+
+```bash
+# Disable read-only filesystem
+sudo steamos-readonly disable
+
+# Install make
+sudo pacman -S make --noconfirm
+
+# Re-enable read-only filesystem (recommended)
+sudo steamos-readonly enable
+```
+
+> **Warning:** Packages installed via `pacman` may be removed during SteamOS updates. You may need to reinstall after major updates.
+
+### Running in Desktop Mode
+
+This server is designed to run in Steam Deck's Desktop Mode. You can:
+
+1. Switch to Desktop Mode (hold power button → Switch to Desktop)
+2. Open Konsole (terminal)
+3. Navigate to the project and run the commands above
+
+### Gaming While Hosting
+
+The server can run in the background while you play Terraria (or other games). The Docker container is configured with resource limits to prevent impacting game performance. For best results:
+
+- Start the server before launching your game
+- Monitor resource usage with `docker stats` if you experience issues
 
 ## License
 
@@ -234,10 +346,12 @@ This project is provided for personal use. Terraria is a registered trademark of
 
 ## Version
 
-Current version: **8.0.0** (Production Ready)
+Current version: **10.0.0** (CLI Management)
 
 ### Changelog
 
+- **10.0.0** - Removed web interface, CLI-only management via ./server.sh
+- **9.0.0** - Pure HTML dashboard, authentication removed, simplified deployment
 - **8.0.0** - Testing & Polish phase complete, production-ready release
 - **7.0.0** - Complete documentation suite
 - **6.0.0** - Multi-stage Docker build, Makefile, health checks

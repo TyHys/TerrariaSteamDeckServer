@@ -177,7 +177,8 @@ create_backup() {
         fi
     else
         # Backup all worlds
-        for world in "${WORLD_DIR}"/*.wld 2>/dev/null; do
+        shopt -s nullglob 2>/dev/null || true
+        for world in "${WORLD_DIR}"/*.wld; do
             if [ -f "$world" ]; then
                 local world_name
                 world_name=$(basename "$world" .wld)
@@ -188,6 +189,7 @@ create_backup() {
                 fi
             fi
         done
+        shopt -u nullglob 2>/dev/null || true
     fi
     
     if [ ${success_count} -eq 0 ] && [ ${fail_count} -eq 0 ]; then

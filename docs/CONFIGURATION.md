@@ -5,15 +5,12 @@ Complete reference for all configuration options in the Terraria Steam Deck Serv
 ## Table of Contents
 
 - [Configuration File](#configuration-file)
-- [Required Settings](#required-settings)
 - [World Settings](#world-settings)
 - [Server Settings](#server-settings)
 - [Process Management](#process-management)
 - [Backup Settings](#backup-settings)
-- [Web Interface Settings](#web-interface-settings)
 - [Advanced Settings](#advanced-settings)
 - [Applying Changes](#applying-changes)
-- [Web Interface Configuration](#web-interface-configuration)
 
 ---
 
@@ -47,32 +44,6 @@ vim .env
 # Using VS Code (if installed)
 code .env
 ```
-
----
-
-## Required Settings
-
-These settings MUST be configured before starting the server.
-
-### API_PASSWORD
-
-```bash
-# API password for web interface (REQUIRED - minimum 8 characters)
-API_PASSWORD=YourSecurePasswordHere
-```
-
-| Property | Value |
-|----------|-------|
-| Required | Yes |
-| Minimum Length | 8 characters |
-| Recommended | 16+ characters with mixed case, numbers, symbols |
-
-This password is used to:
-- Login to the web management interface
-- Authenticate API requests
-- Protect server configuration changes
-
-**Security Note:** Choose a strong password. Anyone with this password has full control over your Terraria server.
 
 ---
 
@@ -137,8 +108,6 @@ Whether to automatically create a world if none exists.
 | 1 | Create Small world if missing |
 | 2 | Create Medium world if missing |
 | 3 | Create Large world if missing |
-
-Set to `0` if you want to create worlds exclusively through the web interface.
 
 ### WORLD_SEED
 
@@ -215,7 +184,6 @@ Password required to join the game server.
 When set:
 - Players must enter this password when connecting
 - Protects your server from unwanted guests
-- Different from API_PASSWORD (web interface)
 
 ### MOTD
 
@@ -414,96 +382,6 @@ Compression method for backups.
 
 ---
 
-## Web Interface Settings
-
-Configure the management web interface.
-
-### API_PORT
-
-```bash
-API_PORT=8080
-```
-
-HTTP port for the web interface.
-
-| Property | Value |
-|----------|-------|
-| Default | 8080 |
-| Standard Alternative | 80 (requires root) |
-
-Access the web interface at `http://localhost:<port>`
-
-### API_USERNAME
-
-```bash
-API_USERNAME=admin
-```
-
-Username for web interface login.
-
-| Property | Value |
-|----------|-------|
-| Default | admin |
-
-### API_PASSWORD
-
-See [Required Settings](#api_password) above.
-
-### API_TOKEN_EXPIRY
-
-```bash
-API_TOKEN_EXPIRY=86400
-```
-
-How long (seconds) until login session expires.
-
-| Property | Value |
-|----------|-------|
-| Default | 86400 (24 hours) |
-| Minimum | 3600 (1 hour) |
-| Maximum | 604800 (7 days) |
-
-After expiry, you must log in again.
-
-### API_DEBUG
-
-```bash
-API_DEBUG=false
-```
-
-Enable debug mode for the API.
-
-| Value | State |
-|-------|-------|
-| false | Production mode (recommended) |
-| true | Debug mode (development only) |
-
-**Warning:** Never enable in production. Debug mode exposes detailed error messages.
-
-### CORS_ORIGINS
-
-```bash
-CORS_ORIGINS=*
-```
-
-Allowed origins for cross-origin requests.
-
-| Value | Behavior |
-|-------|----------|
-| * | Allow all origins |
-| URL | Allow specific origin |
-| URLs | Comma-separated list of allowed origins |
-
-Example for specific origins:
-
-```bash
-CORS_ORIGINS=http://localhost:3000,https://mysite.com
-```
-
-Only change if you're accessing the API from a different domain.
-
----
-
 ## Advanced Settings
 
 These settings are in `server/config/serverconfig.txt` and typically don't need modification.
@@ -561,48 +439,20 @@ After modifying `.env`:
 Most settings require a restart:
 
 ```bash
+./server.sh restart
+# or
 make restart
 ```
-
-### No Restart Required
-
-These can be changed in the web interface without restart:
-- Server password (in-game)
-- MOTD
-- Max players
 
 ### Rebuild Required
 
 If you modify the Dockerfile:
 
 ```bash
-make build
-make restart
+./server.sh update
+# or
+make build && make restart
 ```
-
----
-
-## Web Interface Configuration
-
-Some settings can also be changed through the web interface.
-
-### Accessing Configuration
-
-1. Open `http://localhost:8080`
-2. Log in with your credentials
-3. Click **Configuration** in the sidebar
-
-### Available Settings
-
-The web interface allows changing:
-
-| Section | Settings |
-|---------|----------|
-| Server | Max Players, Password, MOTD, Anti-cheat |
-| World | (Create new worlds with size/difficulty) |
-| Backup | Enable/Disable, Interval, Retention |
-
-**Note:** Changes through the web interface update the running server but may not persist to `.env`. For permanent changes, edit `.env` directly.
 
 ---
 

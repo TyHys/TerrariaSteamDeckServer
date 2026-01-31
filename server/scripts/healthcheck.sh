@@ -1,14 +1,9 @@
 #!/bin/bash
 #---------------------------------------------------------------
 # Container Health Check Script
-# Verifies all services are running: Supervisor, Terraria, Web API
+# Verifies all services are running: Supervisor, Terraria
 # Returns 0 (healthy) or 1 (unhealthy)
 #---------------------------------------------------------------
-
-# Configuration
-API_HOST="${API_HOST:-localhost}"
-API_PORT="${API_PORT:-8080}"
-HEALTH_TIMEOUT=5
 
 # Track health status
 HEALTHY=true
@@ -31,21 +26,6 @@ check_supervisor() {
 #---------------------------------------------------------------
 check_terraria() {
     if pgrep -f "TerrariaServer" > /dev/null 2>&1; then
-        return 0
-    fi
-    return 1
-}
-
-#---------------------------------------------------------------
-# Check Web API
-#---------------------------------------------------------------
-check_api() {
-    local response
-    response=$(curl -s -o /dev/null -w "%{http_code}" \
-        --connect-timeout ${HEALTH_TIMEOUT} \
-        "http://${API_HOST}:${API_PORT}/api/status" 2>/dev/null)
-    
-    if [ "$response" = "200" ]; then
         return 0
     fi
     return 1
@@ -79,12 +59,6 @@ main() {
     if ! check_terraria; then
         HEALTHY=false
         ISSUES="${ISSUES}Terraria server not running. "
-    fi
-    
-    # Check Web API (critical)
-    if ! check_api; then
-        HEALTHY=false
-        ISSUES="${ISSUES}Web API not responding. "
     fi
     
     # Check Backup Scheduler (non-critical, just log warning)

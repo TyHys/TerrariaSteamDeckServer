@@ -1253,5 +1253,164 @@ All 8 phases of the development plan are now complete:
 
 ---
 
-*Project Completed: January 28, 2026*
-*Final Version: 8.0.0 (Production Ready)*
+## Phase 9: Pure HTML Dashboard - COMPLETED
+
+**Date:** January 28, 2026
+
+### Summary
+Implemented a pure HTML dashboard that removes authentication requirements entirely. The new dashboard is a single-page HTML file with embedded CSS and JavaScript, optimized for Steam Deck (1280x800 resolution) with touch-friendly controls. All API endpoints are now public, making the dashboard accessible without login.
+
+### Tasks Completed
+
+- [x] Removed `@require_auth` decorator from all route files
+- [x] Removed auth blueprint registration from `app.py`
+- [x] Created new `/api/dashboard/status` endpoint with combined server info
+- [x] Added utility functions: `get_local_ip()`, `get_public_ip()`, `get_player_count()`, `get_server_uptime()`
+- [x] Created pure HTML dashboard with embedded CSS and minimal JavaScript
+- [x] Updated Docker configuration to remove auth-related environment variables
+- [x] Deleted unused files (auth.py, auth_routes.py, api.js, app.js, styles.css)
+
+### Deliverables Created
+
+1. **`web/backend/routes/dashboard_routes.py`**
+   - New `/api/dashboard/status` endpoint
+   - Returns combined server status, network info, players, and world info
+   - Used for efficient dashboard updates (single API call)
+
+2. **`web/frontend/index.html`** (Replaced)
+   - Pure HTML dashboard with embedded CSS and JavaScript
+   - Dark theme matching Steam Deck aesthetic
+   - Touch-friendly buttons (minimum 48x48px)
+   - Real-time status updates (5-second polling)
+   - Server controls (Start/Stop/Restart)
+   - Backup list with restore functionality
+   - Live log viewer with auto-refresh option
+   - Toast notifications for user feedback
+   - Confirmation modals for destructive actions
+
+### Updated Files
+
+1. **All route files** - Removed `@require_auth` decorators
+   - `server_routes.py`
+   - `backups_routes.py`
+   - `logs_routes.py`
+   - `config_routes.py`
+   - `worlds_routes.py`
+
+2. **`web/backend/routes/__init__.py`**
+   - Removed auth_bp blueprint
+   - Added dashboard_bp blueprint
+   - Removed auth_routes import
+
+3. **`web/backend/app.py`**
+   - Removed auth blueprint registration
+   - Added dashboard blueprint registration
+   - Updated API info endpoint (version 2.0.0)
+   - Removed authentication validation from main()
+
+4. **`web/backend/utils.py`**
+   - Added `get_local_ip()` - Uses socket to determine local network IP
+   - Added `get_public_ip()` - Fetches from external services with 5-min cache
+   - Added `get_player_count()` - Parses server logs for join/leave events
+   - Added `get_server_uptime()` - Parses Supervisor status details
+
+5. **`docker/docker-compose.yml`**
+   - Updated version to 9.0.0
+   - Removed API_USERNAME, API_PASSWORD, API_SECRET_KEY, API_TOKEN_EXPIRY
+
+6. **`docker/.env`**
+   - Removed REQUIRED SETTINGS section
+   - Removed API_PASSWORD, API_USERNAME, API_TOKEN_EXPIRY
+
+### Files Deleted
+
+- `web/backend/auth.py` (5,882 bytes)
+- `web/backend/routes/auth_routes.py` (3,449 bytes)
+- `web/frontend/js/api.js` (15,418 bytes)
+- `web/frontend/js/app.js` (40,750 bytes)
+- `web/frontend/css/styles.css` (24,049 bytes)
+
+**Total cleaned up:** ~89.5 KB of unused code
+
+### New API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/dashboard/status` | Combined dashboard status (server, network, players, world) |
+
+### Dashboard Features
+
+| Feature | Implementation |
+|---------|----------------|
+| Server Status | Real-time indicator (green/red/yellow) with uptime |
+| Network Info | Local IP, Public IP (cached), Port display |
+| Player Count | Parsed from server logs (join/leave events) |
+| Server Controls | Start/Stop/Restart buttons with confirmations |
+| Backup List | Shows recent 20 backups with restore buttons |
+| Log Viewer | Multiple log types with auto-refresh option |
+| Toast Notifications | Success/error/info feedback |
+| Dark Theme | CSS variables matching Steam Deck aesthetic |
+| Responsive | Works on desktop and mobile (1280x800 optimized) |
+
+### Architecture (v9.0.0)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Pure HTML Dashboard                      │
+│                  (No Authentication Required)                │
+│         Single index.html with embedded CSS + JS            │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼ HTTP/REST (Public)
+┌─────────────────────────────────────────────────────────────┐
+│                    Docker Container                          │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │         Flask App (serves static + API)             │    │
+│  │  ┌───────────────┐  ┌─────────────────────────┐    │    │
+│  │  │ Static Files  │  │     REST API            │    │    │
+│  │  │ (index.html)  │  │  /api/* (no auth)       │    │    │
+│  │  └───────────────┘  └─────────────────────────┘    │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                              │                               │
+│                              ▼                               │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              Supervisor + Terraria Server           │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Technical Decisions Made
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Authentication | Removed | Simplifies usage for local network deployments |
+| Frontend | Single HTML file | No build step, minimal dependencies |
+| CSS | Embedded | Single file deployment, no external requests |
+| JavaScript | Vanilla, embedded | No framework overhead, fast loading |
+| Status Polling | 5 seconds | Balance between real-time feel and performance |
+| Public IP Cache | 5 minutes | Reduces external API calls |
+| Player Tracking | Log parsing | Works without modifying server, simple approach |
+
+### Security Considerations
+
+- Dashboard is now accessible to anyone on the local network
+- Users should ensure their network is properly firewalled
+- Consider using a reverse proxy with authentication for internet exposure
+- The container should not be exposed directly to the internet without protection
+
+### Success Criteria Verification
+
+- [x] Dashboard loads without authentication prompt
+- [x] Server status updates automatically every 5 seconds
+- [x] All buttons (start/stop/restart/backup/restore/logs) function correctly
+- [x] Local and public IP addresses display correctly
+- [x] Current player count displays correctly
+- [x] Live logs update when auto-refresh is enabled
+- [x] Works on Steam Deck (1280x800 resolution, touch-friendly)
+- [x] No JavaScript framework dependencies
+- [x] Single HTML file with embedded CSS/JS
+
+---
+
+*Project Updated: January 28, 2026*
+*Current Version: 9.0.0 (Pure HTML Dashboard)*

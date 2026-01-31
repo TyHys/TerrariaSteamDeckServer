@@ -1,6 +1,6 @@
 # TerrariaSteamDeckServer Docker Compose Configuration
 # Optimized for Steam Deck deployment
-# Version 8.0.0 - Production Ready
+# Version 10.0.0 - CLI Management via ./server.sh
 
 services:
   terraria:
@@ -15,14 +15,13 @@ services:
     # Port mappings
     ports:
       - "${SERVER_PORT:-7777}:7777/tcp"    # Terraria game server
-      - "${API_PORT:-8080}:8080/tcp"       # Web management interface
     
-    # Persistent volumes
+    # Persistent volumes (bind mounts to local data directory)
     volumes:
-      - terraria-worlds:/terraria/worlds      # World files
-      - terraria-config:/terraria/config      # Configuration files
-      - terraria-logs:/terraria/logs          # Server logs
-      - terraria-backups:/terraria/backups    # World backups
+      - ../data/worlds:/terraria/worlds        # World files
+      - ../data/config:/terraria/config        # Configuration files
+      - ../data/logs:/terraria/logs            # Server logs
+      - ../data/backups:/terraria/backups      # World backups
     
     # Environment variables
     environment:
@@ -50,15 +49,6 @@ services:
       - BACKUP_RETENTION=${BACKUP_RETENTION:-48}
       - BACKUP_ON_STARTUP=${BACKUP_ON_STARTUP:-false}
       - BACKUP_COMPRESSION=${BACKUP_COMPRESSION:-gzip}
-      
-      # Web API configuration
-      - API_HOST=0.0.0.0
-      - API_PORT=8080
-      - API_USERNAME=${API_USERNAME:-admin}
-      - API_PASSWORD=${API_PASSWORD:?API_PASSWORD is required}
-      - API_TOKEN_EXPIRY=${API_TOKEN_EXPIRY:-86400}
-      - API_DEBUG=${API_DEBUG:-false}
-      - CORS_ORIGINS=${CORS_ORIGINS:-*}
     
     # Resource limits (optimized for Steam Deck)
     deploy:
@@ -84,35 +74,11 @@ services:
     
     # Health check using comprehensive script
     healthcheck:
-      test: ["/terraria/scripts/healthcheck.sh"]
+      test: ["CMD", "/terraria/scripts/healthcheck.sh"]
       interval: 30s
       timeout: 15s
       retries: 3
       start_period: 90s
 
-# Named volumes with local bind mounts for easy access
-volumes:
-  terraria-worlds:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${PWD}/data/worlds
-  terraria-config:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${PWD}/data/config
-  terraria-logs:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${PWD}/data/logs
-  terraria-backups:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${PWD}/data/backups
+# Volumes are bind-mounted directly in the service definition above
+# Data is stored in ../data/ relative to this docker-compose.yml file

@@ -110,10 +110,6 @@ cmd_logs() {
             print_info "Showing last ${lines} lines of supervisor log..."
             tail -n "${lines}" /terraria/logs/supervisord.log
             ;;
-        api|web)
-            print_info "Showing last ${lines} lines of Web API log..."
-            tail -n "${lines}" /terraria/logs/web-api-stdout.log
-            ;;
         follow|tail)
             print_info "Following server output (Ctrl+C to stop)..."
             tail -f /terraria/logs/terraria-stdout.log
@@ -148,12 +144,6 @@ cmd_config() {
     echo "Retention:        ${BACKUP_RETENTION:-48} backups"
     echo "On Startup:       ${BACKUP_ON_STARTUP:-false}"
     echo "Compression:      ${BACKUP_COMPRESSION:-gzip}"
-    echo ""
-    echo "=== Web API Settings ==="
-    echo "Host:             ${API_HOST:-0.0.0.0}"
-    echo "Port:             ${API_PORT:-8080}"
-    echo "Username:         ${API_USERNAME:-admin}"
-    echo "Password:         $([ -n "${API_PASSWORD}" ] && echo "[SET]" || echo "[NOT SET]")"
     echo ""
     print_info "Runtime configuration file:"
     if [ -f /terraria/config/serverconfig-runtime.txt ]; then
@@ -263,13 +253,6 @@ cmd_health() {
         fi
     fi
     
-    # Check Web API
-    if pgrep -f "gunicorn" > /dev/null; then
-        print_status "Web API: Running on port ${API_PORT:-8080}"
-    else
-        print_warning "Web API: Not running"
-    fi
-    
     # Check disk space
     local free_mb=$(df -m /terraria/worlds | awk 'NR==2 {print $4}')
     if [ "${free_mb}" -gt 500 ]; then
@@ -306,7 +289,7 @@ cmd_help() {
     echo "  start               Start the server"
     echo "  stop                Stop the server"
     echo "  restart             Restart the server"
-    echo "  logs [type] [n]     Show logs (stdout|stderr|crash|supervisor|api|follow)"
+    echo "  logs [type] [n]     Show logs (stdout|stderr|crash|supervisor|follow)"
     echo "  config              Show current configuration"
     echo "  health              Run health checks"
     echo ""
@@ -325,10 +308,6 @@ cmd_help() {
     echo "  backups cleanup     Remove old backups"
     echo "  restore <file>      Restore a backup"
     echo "  restore-latest <w>  Restore latest backup for world"
-    echo ""
-    echo "Web API:"
-    echo "  API is accessible at http://localhost:${API_PORT:-8080}"
-    echo "  Use /api/auth/login to get an authentication token"
     echo ""
     echo "Examples:"
     echo "  ${SCRIPT_NAME} status"

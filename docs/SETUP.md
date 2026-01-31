@@ -24,7 +24,7 @@ Before installing, ensure you have:
 | Steam Deck | Running SteamOS 3.0+ in Desktop Mode |
 | Storage | At least 500MB free (more for larger worlds) |
 | Network | Internet connection for Docker image download |
-| Ports | 7777 and 8080 available on localhost |
+| Ports | Port 7777 available on localhost |
 
 ---
 
@@ -32,23 +32,15 @@ Before installing, ensure you have:
 
 Steam Deck uses an immutable filesystem, so Docker must be installed using a specific method.
 
-### Option 1: Using Distrobox (Recommended)
+### Option 1: Using the Install Script (Recommended)
 
-Distrobox is available on Steam Deck without modifying the read-only filesystem.
-
-1. **Open Konsole** (the terminal application in Desktop Mode)
-
-2. **Install Docker in a container:**
+The install script will automatically detect and install Docker:
 
 ```bash
-distrobox create --name docker-box --image docker.io/library/ubuntu:22.04
-distrobox enter docker-box
-sudo apt update && sudo apt install -y docker.io docker-compose
+./install.sh
 ```
 
-### Option 2: Enabling Developer Mode
-
-For native Docker installation:
+### Option 2: Manual Installation
 
 1. **Set a sudo password** (if not already set):
 
@@ -67,12 +59,13 @@ sudo steamos-readonly disable
 ```bash
 sudo pacman-key --init
 sudo pacman-key --populate archlinux
+sudo pacman-key --populate holo
 ```
 
 4. **Install Docker:**
 
 ```bash
-sudo pacman -S docker docker-compose
+sudo pacman -S docker docker-compose --noconfirm
 ```
 
 5. **Enable and start Docker:**
@@ -141,10 +134,9 @@ TerrariaSteamDeckServer/
 ├── server/
 │   ├── config/
 │   └── scripts/
-├── web/
-│   ├── backend/
-│   └── frontend/
 ├── data/           (created after setup)
+├── server.sh       # Main management script
+├── install.sh
 ├── Makefile
 ├── .env.example
 └── README.md
@@ -162,6 +154,12 @@ The setup command creates necessary directories and configuration files:
 make setup
 ```
 
+Or use the install script:
+
+```bash
+./install.sh
+```
+
 This creates:
 - `.env` file from `.env.example`
 - `data/worlds/` directory
@@ -169,23 +167,15 @@ This creates:
 - `data/logs/` directory
 - `data/config/` directory
 
-### Step 2: Configure Required Settings
+### Step 2: Customize Settings (Optional)
 
-Edit the `.env` file:
+Edit the `.env` file to customize your server:
 
 ```bash
 nano .env
-# Or use your preferred editor
 ```
 
-**Required: Set the API password**
-
-```bash
-# REQUIRED: Set a secure password (minimum 8 characters)
-API_PASSWORD=YourSecurePassword123
-```
-
-### Step 3: Customize World Settings (Optional)
+Common settings to customize:
 
 ```bash
 # World name
@@ -196,22 +186,15 @@ WORLD_SIZE=2
 
 # Difficulty: 0=Classic, 1=Expert, 2=Master, 3=Journey
 DIFFICULTY=0
-```
 
-### Step 4: Customize Server Settings (Optional)
-
-```bash
-# Maximum players (1-255)
+# Maximum players
 MAX_PLAYERS=8
 
 # Server password (leave empty for no password)
 SERVER_PASSWORD=
-
-# Message of the day
-MOTD=Welcome to my Terraria server!
 ```
 
-### Step 5: Save and Close
+### Step 3: Save and Close
 
 In nano: Press `Ctrl+O` to save, then `Ctrl+X` to exit.
 
@@ -219,35 +202,37 @@ In nano: Press `Ctrl+O` to save, then `Ctrl+X` to exit.
 
 ## Starting the Server
 
-### Build the Docker Image
-
-First-time or after updates:
+### Using the Management Script (Recommended)
 
 ```bash
-make build
+./server.sh start
 ```
 
-This process:
-- Downloads the Debian base image
-- Downloads Terraria server binary from terraria.org
-- Installs Python and web interface dependencies
-- Creates the final optimized container image
-
-Build time: approximately 5-10 minutes depending on network speed.
-
-### Start the Server
+### Using Make Commands
 
 ```bash
+# Build the Docker image (first time or after updates)
+make build
+
+# Start the server
 make start
 ```
 
-The server starts in detached mode (runs in background).
+### Using Docker Compose Directly
+
+```bash
+# Build the Docker image
+docker compose -f docker/docker-compose.yml build
+
+# Start the server
+docker compose -f docker/docker-compose.yml up -d
+```
 
 ### View Startup Logs
 
-To watch the server start up:
-
 ```bash
+./server.sh logs
+# or
 make logs
 ```
 
@@ -260,14 +245,13 @@ Press `Ctrl+C` to stop following logs (server continues running).
 ### Check Server Status
 
 ```bash
-make status
+./server.sh status
 ```
 
 You should see:
-- Supervisor: RUNNING
-- terraria-server: RUNNING (or STARTING)
-- web-api: RUNNING
-- backup-scheduler: RUNNING
+- Container: Running
+- Terraria server: Running
+- Backup scheduler: Running
 
 ### Run Health Check
 
@@ -276,18 +260,6 @@ make health
 ```
 
 All services should report as healthy.
-
-### Access Web Interface
-
-Open a web browser and navigate to:
-
-```
-http://localhost:8080
-```
-
-Login with:
-- **Username:** admin (or your configured API_USERNAME)
-- **Password:** Your configured API_PASSWORD
 
 ### Test Game Connection
 
@@ -310,10 +282,9 @@ ip addr show | grep "inet " | grep -v 127.0.0.1
 
 The server can run while you're in Game Mode:
 
-1. Start the server in Desktop Mode using `make start`
+1. Start the server in Desktop Mode using `./server.sh start`
 2. Switch to Game Mode
 3. The server continues running in the background
-4. Access the web interface from another device
 
 ### Resource Usage
 
@@ -350,7 +321,7 @@ Edit `.env` then restart:
 
 ```bash
 nano .env
-make restart
+./server.sh restart
 ```
 
 ### Update Server Software
@@ -359,22 +330,22 @@ When a new version is released:
 
 ```bash
 # Stop the server
-make stop
+./server.sh stop
 
 # Pull latest changes (if using git)
 git pull
 
 # Rebuild the image
-make build
+./server.sh update
 
 # Start with new image
-make start
+./server.sh start
 ```
 
 ### Check Current Version
 
 ```bash
-make status
+./server.sh status
 ```
 
 Version is displayed in the status output.

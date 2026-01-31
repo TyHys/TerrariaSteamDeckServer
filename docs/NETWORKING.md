@@ -17,12 +17,11 @@ This guide covers network configuration for hosting your Terraria server, includ
 
 ## Port Requirements
 
-The Terraria Steam Deck Server uses two ports:
+The Terraria Steam Deck Server uses one port:
 
 | Port | Protocol | Service | Required For |
 |------|----------|---------|--------------|
 | **7777** | TCP | Terraria Game Server | Players connecting to play |
-| **8080** | TCP | Web Management Interface | Admin access via browser |
 
 ### Port Summary
 
@@ -30,17 +29,17 @@ The Terraria Steam Deck Server uses two ports:
 ┌─────────────────────────────────────────────────────────────┐
 │                     Steam Deck                               │
 │                                                              │
-│  ┌─────────────────────┐    ┌─────────────────────┐        │
-│  │   Terraria Server   │    │   Web Interface     │        │
-│  │     Port 7777       │    │     Port 8080       │        │
-│  │   (Game Traffic)    │    │   (Admin Panel)     │        │
-│  └─────────────────────┘    └─────────────────────┘        │
-│            ↕                          ↕                     │
-└────────────┼──────────────────────────┼─────────────────────┘
-             │                          │
-             ▼                          ▼
-      Players connect            Admin connects
-      to play Terraria          to manage server
+│                ┌─────────────────────┐                      │
+│                │   Terraria Server   │                      │
+│                │     Port 7777       │                      │
+│                │   (Game Traffic)    │                      │
+│                └─────────────────────┘                      │
+│                          ↕                                   │
+└──────────────────────────┼──────────────────────────────────┘
+                           │
+                           ▼
+                    Players connect
+                    to play Terraria
 ```
 
 ---
@@ -68,16 +67,6 @@ On any device on the same network:
 4. Enter: `192.168.1.x:7777` (replace with your Steam Deck's IP)
 5. Enter server password if configured
 
-### Web Interface Access
-
-From any device on the same network, open a browser and go to:
-
-```
-http://192.168.1.x:8080
-```
-
-Replace `192.168.1.x` with your Steam Deck's IP address.
-
 ---
 
 ## Firewall Configuration
@@ -90,9 +79,6 @@ SteamOS typically doesn't have a firewall enabled by default. If you've enabled 
 # Allow Terraria server port
 sudo iptables -A INPUT -p tcp --dport 7777 -j ACCEPT
 
-# Allow web interface port
-sudo iptables -A INPUT -p tcp --dport 8080 -j ACCEPT
-
 # Save rules (if using persistent iptables)
 sudo iptables-save > /etc/iptables/rules.v4
 ```
@@ -103,9 +89,6 @@ sudo iptables-save > /etc/iptables/rules.v4
 # Allow Terraria port
 sudo firewall-cmd --permanent --add-port=7777/tcp
 
-# Allow web interface port (optional, local access)
-sudo firewall-cmd --permanent --add-port=8080/tcp
-
 # Reload firewall
 sudo firewall-cmd --reload
 ```
@@ -115,9 +98,6 @@ sudo firewall-cmd --reload
 ```bash
 # Allow Terraria port
 sudo ufw allow 7777/tcp
-
-# Allow web interface port (optional)
-sudo ufw allow 8080/tcp
 
 # Enable firewall
 sudo ufw enable
@@ -246,9 +226,6 @@ From another device on your network:
 ```bash
 # Test Terraria port
 nc -zv <steam-deck-ip> 7777
-
-# Test web interface
-curl http://<steam-deck-ip>:8080/api/status
 ```
 
 ### Test Remote Access
@@ -275,20 +252,6 @@ Have a friend outside your network try to connect:
 
 ## Security Considerations
 
-### Web Interface (Port 8080)
-
-**Do NOT forward port 8080 to the internet** unless absolutely necessary.
-
-The web interface provides full server control. Exposing it publicly:
-- Allows brute-force password attacks
-- Risks server compromise if password is weak
-- Could allow attackers to delete worlds/backups
-
-**Safer alternatives for remote admin:**
-- Use a VPN to access your home network
-- Use SSH tunneling
-- Only access when on local network
-
 ### Game Server (Port 7777)
 
 Port 7777 is generally safe to forward:
@@ -306,12 +269,10 @@ Port 7777 is generally safe to forward:
 
 ### VPN for Remote Access
 
-For secure remote administration, consider:
+For secure remote access, consider:
 - **Tailscale** - Easy to set up, works on Steam Deck
 - **WireGuard** - Modern, fast VPN
 - **OpenVPN** - Widely supported
-
-With a VPN, you can access the web interface without port forwarding.
 
 ---
 
@@ -321,7 +282,7 @@ With a VPN, you can access the web interface without port forwarding.
 
 1. **Verify server is running:**
    ```bash
-   make health
+   ./server.sh status
    ```
 
 2. **Check if port is listening:**
@@ -364,23 +325,6 @@ With a VPN, you can access the web interface without port forwarding.
 5. **Test with different port:**
    - Some ISPs block port 7777
    - Try port 17777 if available
-
-### Web Interface Not Accessible
-
-1. **Check if API is running:**
-   ```bash
-   make status
-   ```
-
-2. **Test locally:**
-   ```bash
-   curl http://localhost:8080/api/status
-   ```
-
-3. **Check for port conflicts:**
-   ```bash
-   ss -tlnp | grep 8080
-   ```
 
 ### Common Error Messages
 
@@ -425,7 +369,7 @@ If using Wi-Fi:
 - [ ] Steam Deck has consistent IP (static or DHCP reservation)
 - [ ] Port 7777/TCP forwarded to Steam Deck IP
 - [ ] Firewall allows port 7777
-- [ ] Server is running (`make status`)
+- [ ] Server is running (`./server.sh status`)
 - [ ] Online port check shows port open
 
 ### Connection Information to Share

@@ -7,7 +7,6 @@ This guide helps you diagnose and resolve common issues with the Terraria Steam 
 - [Diagnostic Commands](#diagnostic-commands)
 - [Server Issues](#server-issues)
 - [Connection Issues](#connection-issues)
-- [Web Interface Issues](#web-interface-issues)
 - [Backup and Restore Issues](#backup-and-restore-issues)
 - [World Issues](#world-issues)
 - [Docker Issues](#docker-issues)
@@ -32,19 +31,19 @@ Shows the status of all services.
 ### Detailed Status
 
 ```bash
-make status
+./server.sh status
 ```
 
-Shows Supervisor process states and system information.
+Shows container status, service states, and system information.
 
 ### View Recent Logs
 
 ```bash
 # All logs
-make logs
+./server.sh logs 50
 
-# Last 50 lines only
-docker exec terraria-server tail -50 /terraria/logs/terraria-stdout.log
+# Follow logs in real-time
+./server.sh livelogs
 ```
 
 ### Check Running Processes
@@ -73,30 +72,24 @@ docker stats terraria-server --no-stream
 ### Server Won't Start
 
 **Symptoms:**
-- `make start` completes but server isn't running
+- `./server.sh start` completes but server isn't running
 - Health check shows services as not running
 
 **Solutions:**
 
 1. **Check for configuration errors:**
    ```bash
-   make status
+   ./server.sh status
    docker logs terraria-server 2>&1 | tail -50
    ```
 
-2. **Verify API_PASSWORD is set:**
+2. **Check for port conflicts:**
    ```bash
-   grep API_PASSWORD .env
+   ss -tlnp | grep 7777
    ```
-   If empty, set a password (minimum 8 characters).
+   If port is in use, stop the conflicting service or change port in `.env`.
 
-3. **Check for port conflicts:**
-   ```bash
-   ss -tlnp | grep -E '7777|8080'
-   ```
-   If ports are in use, stop the conflicting service or change ports in `.env`.
-
-4. **Rebuild the container:**
+3. **Rebuild the container:**
    ```bash
    make clean
    make build
@@ -179,7 +172,7 @@ docker stats terraria-server --no-stream
 
 1. **Verify server is running:**
    ```bash
-   make health
+   ./server.sh status
    ```
 
 2. **Check the correct IP:**
@@ -252,112 +245,8 @@ docker stats terraria-server --no-stream
 
 3. **Restart after password change:**
    ```bash
-   make restart
+   ./server.sh restart
    ```
-
----
-
-## Web Interface Issues
-
-### Can't Access Web Interface
-
-**Symptoms:**
-- Browser shows "connection refused"
-- "This site can't be reached"
-
-**Solutions:**
-
-1. **Check if API is running:**
-   ```bash
-   docker exec terraria-server supervisorctl status web-api
-   ```
-
-2. **Test locally:**
-   ```bash
-   curl http://localhost:8080/api/status
-   ```
-
-3. **Check port 8080:**
-   ```bash
-   ss -tlnp | grep 8080
-   ```
-
-4. **Check API logs:**
-   ```bash
-   docker exec terraria-server tail -50 /terraria/logs/web-api-stdout.log
-   ```
-
-5. **Verify port in docker-compose:**
-   ```bash
-   grep 8080 docker/docker-compose.yml
-   ```
-
-### Login Fails
-
-**Symptoms:**
-- "Invalid credentials" error
-- Can't login with correct password
-
-**Solutions:**
-
-1. **Verify credentials:**
-   ```bash
-   grep -E 'API_USERNAME|API_PASSWORD' .env
-   ```
-
-2. **Check for whitespace:**
-   - Remove any trailing spaces in .env
-
-3. **Password requirements:**
-   - Must be at least 8 characters
-   - Case-sensitive
-
-4. **Clear browser cache:**
-   - Try incognito/private mode
-
-5. **Check API logs for errors:**
-   ```bash
-   docker exec terraria-server tail -50 /terraria/logs/web-api-stderr.log
-   ```
-
-### Session Expires Too Quickly
-
-**Symptoms:**
-- Logged out frequently
-- "Token expired" errors
-
-**Solutions:**
-
-1. **Increase token expiry:**
-   Edit `.env`:
-   ```bash
-   API_TOKEN_EXPIRY=604800  # 7 days
-   ```
-
-2. **Restart after change:**
-   ```bash
-   make restart
-   ```
-
-### Web Interface Shows Errors
-
-**Symptoms:**
-- JavaScript errors in console
-- Buttons don't work
-
-**Solutions:**
-
-1. **Hard refresh the page:**
-   - Ctrl+Shift+R (Chrome/Firefox)
-   - Cmd+Shift+R (Safari)
-
-2. **Clear browser cache**
-
-3. **Try a different browser**
-
-4. **Check browser console:**
-   - Press F12 → Console tab
-   - Look for error messages
 
 ---
 
@@ -383,12 +272,12 @@ docker stats terraria-server --no-stream
 
 3. **Check backup scheduler logs:**
    ```bash
-   docker exec terraria-server tail -50 /terraria/logs/backup-scheduler.log
+   docker exec terraria-server tail -50 /terraria/logs/backup-scheduler-stdout.log
    ```
 
 4. **Run manual backup:**
    ```bash
-   make backup
+   ./server.sh backup
    ```
 
 5. **Check disk space:**
@@ -404,24 +293,25 @@ docker stats terraria-server --no-stream
 
 **Solutions:**
 
-1. **Stop server before restore:**
+1. **Use the server.sh restore command:**
    ```bash
-   docker exec terraria-server supervisorctl stop terraria-server
+   ./server.sh restore <backup-file>
    ```
+   This will handle stopping/starting the server automatically.
 
 2. **Verify backup file exists:**
    ```bash
-   make backups
+   ./server.sh backups
    ```
 
 3. **Check backup integrity:**
    ```bash
-   docker exec terraria-server /terraria/scripts/backup.sh verify <backup-file>
+   tar -tzf data/backups/<backup-file> | head
    ```
 
 4. **Check permissions:**
    ```bash
-   docker exec terraria-server ls -la /terraria/backups/
+   ls -la data/backups/
    ```
 
 5. **Try a different backup:**
@@ -496,9 +386,9 @@ docker stats terraria-server --no-stream
 
 1. **Restore from backup:**
    ```bash
-   make backups
+   ./server.sh backups
    # Find a good backup
-   docker exec terraria-server /terraria/scripts/restore.sh restore <backup-file>
+   ./server.sh restore <backup-file>
    ```
 
 2. **Try the .wld.bak file:**
@@ -530,13 +420,9 @@ docker stats terraria-server --no-stream
    ls -la data/worlds/
    ```
 
-3. **Check permissions:**
-   The container runs as UID 1000.
-
-4. **Manual save command:**
+3. **Use the save command:**
    ```bash
-   # If server has stdin access
-   docker exec terraria-server supervisorctl signal SIGUSR1 terraria-server
+   ./server.sh save
    ```
 
 ---
@@ -546,7 +432,7 @@ docker stats terraria-server --no-stream
 ### Container Won't Start
 
 **Symptoms:**
-- `make start` fails
+- `./server.sh start` fails
 - Container exits immediately
 
 **Solutions:**
@@ -643,7 +529,7 @@ docker stats terraria-server --no-stream
 
 1. **Start server before switching modes:**
    ```bash
-   make start
+   ./server.sh start
    ```
    The container should persist.
 
@@ -691,7 +577,7 @@ docker stats terraria-server --no-stream
 1. **Container doesn't auto-start:**
    You need to manually start:
    ```bash
-   make start
+   ./server.sh start
    ```
 
 2. **Create a startup script:**
@@ -710,11 +596,9 @@ docker stats terraria-server --no-stream
 |----------|----------|
 | `/terraria/logs/terraria-stdout.log` | Terraria server output |
 | `/terraria/logs/terraria-stderr.log` | Terraria server errors |
-| `/terraria/logs/web-api-stdout.log` | Web API output |
-| `/terraria/logs/web-api-stderr.log` | Web API errors |
 | `/terraria/logs/supervisord.log` | Process manager log |
 | `/terraria/logs/crashes.log` | Crash notifications |
-| `/terraria/logs/backup-scheduler.log` | Backup scheduler log |
+| `/terraria/logs/backup-scheduler-stdout.log` | Backup scheduler log |
 
 ### Host System
 
@@ -726,8 +610,11 @@ docker stats terraria-server --no-stream
 ### Viewing Logs
 
 ```bash
+# View recent logs
+./server.sh logs 100
+
 # Live follow all logs
-make logs
+./server.sh livelogs
 
 # Specific log file
 docker exec terraria-server tail -100 /terraria/logs/terraria-stdout.log
@@ -746,7 +633,7 @@ When seeking help, gather:
 
 1. **Server status:**
    ```bash
-   make status > status.txt
+   ./server.sh status > status.txt
    ```
 
 2. **Recent logs:**
@@ -799,15 +686,13 @@ When reporting a bug, include:
 | Problem | Quick Fix |
 |---------|-----------|
 | Server won't start | `make clean && make start` |
-| API not responding | `docker exec terraria-server supervisorctl restart web-api` |
 | Terraria crash | Check `/terraria/logs/crashes.log` |
-| Can't login | Verify `API_PASSWORD` in `.env` |
 | No backups | Check `BACKUP_ENABLED=true` |
 | Port conflict | Change port in `.env`, restart |
 | Out of memory | Increase limits in docker-compose.yml |
 | World corrupt | Restore from backup |
 | Connection refused | Check firewall, port forwarding |
-| Container missing | `make start` |
+| Container missing | `./server.sh start` |
 
 ---
 

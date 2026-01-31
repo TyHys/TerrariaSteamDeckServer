@@ -10,6 +10,7 @@ SERVER_BIN="/terraria/server/TerrariaServer.bin.x86_64"
 LOG_DIR="/terraria/logs"
 WORLD_DIR="/terraria/worlds"
 PID_FILE="/tmp/terraria-server.pid"
+COMMAND_FIFO="/tmp/terraria-command.fifo"
 
 # Restart backoff settings (from environment or defaults)
 RESTART_DELAY="${RESTART_DELAY:-5}"
@@ -106,12 +107,18 @@ shutdown_handler() {
     if [ -n "${server_pid}" ] && kill -0 "${server_pid}" 2>/dev/null; then
         log "Sending save-and-exit command to server..."
         
-        # The server needs to receive "exit" on stdin to save properly
-        # Since we're running with exec, we send SIGTERM and trust the server
-        # to handle it. If the server has an input pipe, we could write to it.
+        # Try to send exit command via FIFO first (triggers proper save)
+        if [ -p "${COMMAND_FIFO}" ]; then
+            log "Sending 'exit' command via FIFO..."
+            echo "exit" > "${COMMAND_FIFO}" 2>/dev/null || true
+            sleep 2
+        fi
         
-        log "Sending SIGTERM to server (PID: ${server_pid})..."
-        kill -TERM "${server_pid}" 2>/dev/null
+        # If still running, send SIGTERM
+        if kill -0 "${server_pid}" 2>/dev/null; then
+            log "Sending SIGTERM to server (PID: ${server_pid})..."
+            kill -TERM "${server_pid}" 2>/dev/null
+        fi
         
         # Wait for server to exit gracefully
         local wait_time=0
@@ -131,7 +138,7 @@ shutdown_handler() {
         log "Server process terminated."
     fi
     
-    rm -f "${PID_FILE}"
+    rm -f "${PID_FILE}" "${COMMAND_FIFO}"
     log "Shutdown complete."
     exit 0
 }
@@ -176,6 +183,50 @@ preflight_checks() {
 }
 
 #---------------------------------------------------------------
+# Set up command FIFO for external command injection
+#---------------------------------------------------------------
+setup_command_fifo() {
+    log "Setting up command FIFO at ${COMMAND_FIFO}..."
+    
+    # Remove old FIFO if it exists
+    rm -f "${COMMAND_FIFO}"
+    
+    # Create new FIFO with world-writable permissions
+    mkfifo -m 0666 "${COMMAND_FIFO}"
+    
+    # Ensure it's owned by terraria user and world-writable
+    chown terraria:terraria "${COMMAND_FIFO}" 2>/dev/null || true
+    chmod 0666 "${COMMAND_FIFO}"
+    
+    log "Command FIFO ready. Send commands with: echo 'command' > ${COMMAND_FIFO}"
+}
+
+#---------------------------------------------------------------
+# Command reader process - reads from FIFO and writes to server stdin
+#---------------------------------------------------------------
+command_reader() {
+    local server_stdin_fd=$1
+    
+    log "Command reader started, listening on ${COMMAND_FIFO}..."
+    
+    # Keep reading from FIFO in a loop
+    # Opening FIFO for reading blocks until a writer opens it
+    # We use a loop with read-write to keep the FIFO open
+    exec 3<>"${COMMAND_FIFO}"
+    
+    while true; do
+        if read -r cmd <&3; then
+            if [ -n "$cmd" ]; then
+                log "Received command: ${cmd}"
+                echo "$cmd" >&${server_stdin_fd}
+            fi
+        fi
+        # Small sleep to prevent busy loop
+        sleep 0.1
+    done
+}
+
+#---------------------------------------------------------------
 # Main server execution
 #---------------------------------------------------------------
 run_server() {
@@ -185,23 +236,49 @@ run_server() {
     # Display startup info
     display_startup_info
     
+    # Set up command FIFO
+    setup_command_fifo
+    
     log "Launching Terraria server process..."
     
-    # Start the server
-    # We use exec to replace this process, allowing proper signal handling
-    # The server output is captured by supervisor's logging
-    "${SERVER_BIN}" -config "${CONFIG_FILE}" &
+    # Create a pipe for server stdin
+    # We'll use a named pipe approach with stdin redirection
+    
+    # Start the server with stdin from a file descriptor we control
+    # Using process substitution and stdin redirection
+    exec 4>&1  # Save stdout
+    
+    # Start the server reading from a pipe
+    "${SERVER_BIN}" -config "${CONFIG_FILE}" < <(
+        # This subshell feeds the server stdin
+        # It reads from the command FIFO and passes to the server
+        exec 3<>"${COMMAND_FIFO}"
+        while true; do
+            if read -r -t 1 cmd <&3; then
+                if [ -n "$cmd" ]; then
+                    log "Executing command: ${cmd}"
+                    echo "$cmd"
+                fi
+            fi
+            # Check if parent process is still alive
+            if ! kill -0 $$ 2>/dev/null; then
+                break
+            fi
+        done
+    ) &
+    
     server_pid=$!
     echo "${server_pid}" > "${PID_FILE}"
     
     log "Server started with PID: ${server_pid}"
+    log "Send commands via: echo 'command' > ${COMMAND_FIFO}"
     
     # Wait for server process
     wait "${server_pid}"
     exit_code=$?
     
     log "Server exited with code: ${exit_code}"
-    rm -f "${PID_FILE}"
+    rm -f "${PID_FILE}" "${COMMAND_FIFO}"
     
     return ${exit_code}
 }
