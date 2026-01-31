@@ -17,7 +17,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTAINER_NAME="terraria-server"
 COMPOSE_FILE="${SCRIPT_DIR}/docker/docker-compose.yml"
-ENV_FILE="${SCRIPT_DIR}/docker/.env"
+ENV_FILE="${SCRIPT_DIR}/.env"
 BACKUP_DIR="${SCRIPT_DIR}/data/backups"
 DATA_DIR="${SCRIPT_DIR}/data"
 COMMAND_FIFO="/tmp/terraria-command.fifo"
@@ -773,27 +773,421 @@ cmd_backups() {
 }
 
 #-------------------------------------------------------------------------------
+# Command: backup-schedule (configure automatic backups)
+#-------------------------------------------------------------------------------
+cmd_backup_schedule() {
+    print_header "Backup Schedule Configuration"
+    
+    # Check if .env file exists
+    if [ ! -f "${ENV_FILE}" ]; then
+        print_error "Configuration file not found: ${ENV_FILE}"
+        print_info "Run 'make setup' first to create the configuration file."
+        return 1
+    fi
+    
+    # Read current settings from .env
+    local current_enabled
+    local current_interval
+    local current_retention
+    local current_on_startup
+    
+    current_enabled=$(grep "^BACKUP_ENABLED=" "${ENV_FILE}" 2>/dev/null | cut -d'=' -f2 || echo "true")
+    current_interval=$(grep "^BACKUP_INTERVAL=" "${ENV_FILE}" 2>/dev/null | cut -d'=' -f2 || echo "30")
+    current_retention=$(grep "^BACKUP_RETENTION=" "${ENV_FILE}" 2>/dev/null | cut -d'=' -f2 || echo "48")
+    current_on_startup=$(grep "^BACKUP_ON_STARTUP=" "${ENV_FILE}" 2>/dev/null | cut -d'=' -f2 || echo "false")
+    
+    # Display current settings
+    echo -e "${BOLD}Current Settings:${NC}"
+    echo "  Automatic backups: ${current_enabled}"
+    echo "  Backup interval:   ${current_interval} minutes"
+    echo "  Backups to keep:   ${current_retention}"
+    echo "  Backup on startup: ${current_on_startup}"
+    echo ""
+    
+    # Ask if user wants to change settings
+    read -r -p "Would you like to change these settings? (y/n): " change_settings
+    if [ "$change_settings" != "y" ] && [ "$change_settings" != "Y" ]; then
+        print_info "No changes made."
+        return 0
+    fi
+    
+    echo ""
+    echo -e "${BOLD}Configure Automatic Backups${NC}"
+    echo ""
+    
+    # Question 1: Enable backups?
+    echo "Enable automatic backups?"
+    echo "  1) Yes - automatically backup worlds at regular intervals"
+    echo "  2) No  - only create backups manually"
+    echo ""
+    read -r -p "Choose (1 or 2) [current: ${current_enabled}]: " backup_choice
+    
+    local new_enabled
+    case "$backup_choice" in
+        1|y|Y|yes|true)
+            new_enabled="true"
+            ;;
+        2|n|N|no|false)
+            new_enabled="false"
+            ;;
+        "")
+            new_enabled="${current_enabled}"
+            ;;
+        *)
+            print_warning "Invalid choice, keeping current setting: ${current_enabled}"
+            new_enabled="${current_enabled}"
+            ;;
+    esac
+    
+    local new_interval="${current_interval}"
+    local new_retention="${current_retention}"
+    local new_on_startup="${current_on_startup}"
+    
+    # Only ask additional questions if backups are enabled
+    if [ "$new_enabled" = "true" ]; then
+        echo ""
+        
+        # Question 2: Backup interval
+        echo "How often should backups be created?"
+        echo "  Common intervals:"
+        echo "    15  - Every 15 minutes (for active servers)"
+        echo "    30  - Every 30 minutes (recommended)"
+        echo "    60  - Every hour"
+        echo "    120 - Every 2 hours"
+        echo ""
+        read -r -p "Backup interval in minutes [current: ${current_interval}]: " interval_input
+        
+        if [ -n "$interval_input" ]; then
+            # Validate numeric input
+            if [[ "$interval_input" =~ ^[0-9]+$ ]] && [ "$interval_input" -ge 1 ]; then
+                new_interval="$interval_input"
+            else
+                print_warning "Invalid number, keeping current setting: ${current_interval} minutes"
+            fi
+        fi
+        
+        echo ""
+        
+        # Question 3: Backup retention
+        echo "How many backups should be kept?"
+        echo "  Examples:"
+        echo "    12  - Keep last 12 backups (~6 hours at 30-min intervals)"
+        echo "    24  - Keep last 24 backups (~12 hours)"
+        echo "    48  - Keep last 48 backups (~24 hours, recommended)"
+        echo "    96  - Keep last 96 backups (~2 days)"
+        echo ""
+        echo "  Tip: More backups = more disk space used"
+        echo ""
+        read -r -p "Number of backups to keep [current: ${current_retention}]: " retention_input
+        
+        if [ -n "$retention_input" ]; then
+            # Validate numeric input
+            if [[ "$retention_input" =~ ^[0-9]+$ ]] && [ "$retention_input" -ge 1 ]; then
+                new_retention="$retention_input"
+            else
+                print_warning "Invalid number, keeping current setting: ${current_retention}"
+            fi
+        fi
+        
+        echo ""
+        
+        # Question 4: Backup on startup
+        echo "Create a backup when the server starts?"
+        echo "  1) Yes - good for safety before updates"
+        echo "  2) No  - rely on scheduled backups only"
+        echo ""
+        read -r -p "Backup on startup? (1 or 2) [current: ${current_on_startup}]: " startup_choice
+        
+        case "$startup_choice" in
+            1|y|Y|yes|true)
+                new_on_startup="true"
+                ;;
+            2|n|N|no|false)
+                new_on_startup="false"
+                ;;
+            "")
+                new_on_startup="${current_on_startup}"
+                ;;
+            *)
+                print_warning "Invalid choice, keeping current setting: ${current_on_startup}"
+                ;;
+        esac
+    fi
+    
+    echo ""
+    echo -e "${BOLD}New Settings:${NC}"
+    echo "  Automatic backups: ${new_enabled}"
+    if [ "$new_enabled" = "true" ]; then
+        echo "  Backup interval:   ${new_interval} minutes"
+        echo "  Backups to keep:   ${new_retention}"
+        echo "  Backup on startup: ${new_on_startup}"
+        
+        # Calculate approximate storage info
+        local hours_covered=$((new_interval * new_retention / 60))
+        echo ""
+        echo -e "  ${CYAN}This will keep approximately ${hours_covered} hours of backups.${NC}"
+    fi
+    echo ""
+    
+    read -r -p "Save these settings? (y/n): " confirm_save
+    if [ "$confirm_save" != "y" ] && [ "$confirm_save" != "Y" ]; then
+        print_info "Changes discarded."
+        return 0
+    fi
+    
+    # Update .env file
+    print_info "Updating configuration..."
+    
+    # Use sed to update values in place
+    sed -i "s/^BACKUP_ENABLED=.*/BACKUP_ENABLED=${new_enabled}/" "${ENV_FILE}"
+    sed -i "s/^BACKUP_INTERVAL=.*/BACKUP_INTERVAL=${new_interval}/" "${ENV_FILE}"
+    sed -i "s/^BACKUP_RETENTION=.*/BACKUP_RETENTION=${new_retention}/" "${ENV_FILE}"
+    sed -i "s/^BACKUP_ON_STARTUP=.*/BACKUP_ON_STARTUP=${new_on_startup}/" "${ENV_FILE}"
+    
+    print_success "Configuration saved!"
+    echo ""
+    
+    # If container is running, offer to restart
+    if container_running; then
+        print_warning "The server needs to be restarted for changes to take effect."
+        echo ""
+        read -r -p "Restart the server now? (y/n): " restart_now
+        if [ "$restart_now" = "y" ] || [ "$restart_now" = "Y" ]; then
+            echo ""
+            cmd_restart
+        else
+            print_info "Restart the server later with: $0 restart"
+        fi
+    else
+        print_info "Changes will apply when the server starts."
+    fi
+}
+
+#-------------------------------------------------------------------------------
 # Command: update
+# Updates the Terraria server to a new version
+# Usage: ./server.sh update [version]
+#   version: Optional 4-digit version number (e.g., 1453 for Terraria 1.4.5.3)
+#            If not provided, just rebuilds with the current version
 #-------------------------------------------------------------------------------
 cmd_update() {
-    print_header "Updating Container Image"
+    local new_version="$1"
+    local dockerfile="${SCRIPT_DIR}/docker/Dockerfile"
     
+    print_header "Terraria Server Update"
+    
+    # Check if Dockerfile exists
+    if [ ! -f "$dockerfile" ]; then
+        print_error "Dockerfile not found: $dockerfile"
+        return 1
+    fi
+    
+    # Get current version from Dockerfile
+    local current_version
+    current_version=$(grep "^ARG TERRARIA_VERSION=" "$dockerfile" | cut -d'=' -f2)
+    
+    if [ -z "$current_version" ]; then
+        print_error "Could not determine current Terraria version from Dockerfile"
+        return 1
+    fi
+    
+    echo -e "${BOLD}Current Version:${NC} ${current_version}"
+    
+    # If no version specified, just rebuild with current version
+    if [ -z "$new_version" ]; then
+        echo ""
+        print_info "No version specified. Rebuilding with current version (${current_version})..."
+        echo ""
+        _do_update_rebuild
+        return $?
+    fi
+    
+    # Validate version format (should be 4 digits)
+    if ! [[ "$new_version" =~ ^[0-9]{4}$ ]]; then
+        print_error "Invalid version format: ${new_version}"
+        echo ""
+        echo "Version should be a 4-digit number, for example:"
+        echo "  1449 (for Terraria 1.4.4.9)"
+        echo "  1450 (for Terraria 1.4.5.0)"
+        echo "  1451 (for Terraria 1.4.5.1)"
+        echo "  1453 (for Terraria 1.4.5.3)"
+        echo ""
+        echo "Pattern: Remove dots and trailing zeros from game version"
+        echo "  Example: 1.4.5.3 → 1453"
+        return 1
+    fi
+    
+    # Check if same version
+    if [ "$new_version" = "$current_version" ]; then
+        print_warning "Already on version ${new_version}"
+        echo ""
+        read -r -p "Rebuild anyway? (y/n): " rebuild_anyway
+        if [ "$rebuild_anyway" != "y" ] && [ "$rebuild_anyway" != "Y" ]; then
+            print_info "Update cancelled."
+            return 0
+        fi
+        _do_update_rebuild
+        return $?
+    fi
+    
+    echo -e "${BOLD}New Version:${NC}     ${new_version}"
+    echo ""
+    
+    # Verify the version exists on terraria.org
+    print_info "Verifying version ${new_version} exists on terraria.org..."
+    local download_url="https://terraria.org/api/download/pc-dedicated-server/terraria-server-${new_version}.zip"
+    
+    if curl --output /dev/null --silent --head --fail "$download_url"; then
+        print_success "Version ${new_version} is available for download"
+    else
+        print_error "Version ${new_version} not found on terraria.org"
+        echo ""
+        echo "The download URL was:"
+        echo "  ${download_url}"
+        echo ""
+        echo "Check the official wiki for valid versions:"
+        echo "  https://terraria.wiki.gg/wiki/Server#Downloads"
+        echo ""
+        read -r -p "Continue anyway? (y/n): " continue_anyway
+        if [ "$continue_anyway" != "y" ] && [ "$continue_anyway" != "Y" ]; then
+            print_info "Update cancelled."
+            return 0
+        fi
+    fi
+    
+    echo ""
+    
+    # Determine if this is a major version change
+    local current_major="${current_version:0:3}"
+    local new_major="${new_version:0:3}"
+    local is_major_update=false
+    
+    if [ "$current_major" != "$new_major" ]; then
+        is_major_update=true
+        print_warning "This is a MAJOR version update (${current_major}x → ${new_major}x)"
+        echo ""
+    fi
+    
+    # Show update summary
+    echo -e "${BOLD}Update Summary:${NC}"
+    echo "  From:  ${current_version}"
+    echo "  To:    ${new_version}"
+    echo ""
+    echo -e "${CYAN}Note: Players must be on the same version as the server to connect.${NC}"
+    echo ""
+    
+    # Offer to create backup before updating
+    if container_running; then
+        if [ "$is_major_update" = true ]; then
+            print_warning "Recommended: Create a backup before major updates"
+        fi
+        read -r -p "Create a backup before updating? (y/n): " create_backup
+        if [ "$create_backup" = "y" ] || [ "$create_backup" = "Y" ]; then
+            echo ""
+            cmd_backup
+            echo ""
+        fi
+    fi
+    
+    # Confirm the update
+    read -r -p "Proceed with update to version ${new_version}? (y/n): " confirm
+    if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+        print_info "Update cancelled."
+        return 0
+    fi
+    
+    echo ""
+    
+    # Update the Dockerfile
+    print_info "Updating Dockerfile..."
+    
+    # Update ARG TERRARIA_VERSION
+    if ! sed -i "s/^ARG TERRARIA_VERSION=.*/ARG TERRARIA_VERSION=${new_version}/" "$dockerfile"; then
+        print_error "Failed to update ARG TERRARIA_VERSION in Dockerfile"
+        return 1
+    fi
+    
+    # Update ENV TERRARIA_VERSION
+    if ! sed -i "s/^ENV TERRARIA_VERSION=.*/ENV TERRARIA_VERSION=${new_version}/" "$dockerfile"; then
+        print_error "Failed to update ENV TERRARIA_VERSION in Dockerfile"
+        return 1
+    fi
+    
+    # Verify the changes
+    local verify_arg
+    local verify_env
+    verify_arg=$(grep "^ARG TERRARIA_VERSION=" "$dockerfile" | cut -d'=' -f2)
+    verify_env=$(grep "^ENV TERRARIA_VERSION=" "$dockerfile" | cut -d'=' -f2)
+    
+    if [ "$verify_arg" != "$new_version" ] || [ "$verify_env" != "$new_version" ]; then
+        print_error "Dockerfile update verification failed"
+        echo "  ARG TERRARIA_VERSION=${verify_arg} (expected ${new_version})"
+        echo "  ENV TERRARIA_VERSION=${verify_env} (expected ${new_version})"
+        return 1
+    fi
+    
+    print_success "Dockerfile updated to version ${new_version}"
+    echo ""
+    
+    # Rebuild the container
+    _do_update_rebuild
+    local result=$?
+    
+    if [ $result -eq 0 ]; then
+        echo ""
+        print_success "Server updated to Terraria version ${new_version}!"
+        echo ""
+        echo -e "${CYAN}Reminder: Players must update their game to version ${new_version} to connect.${NC}"
+    fi
+    
+    return $result
+}
+
+# Helper function to handle the rebuild process
+_do_update_rebuild() {
     local was_running=false
+    
     if container_running; then
         was_running=true
         print_info "Stopping current container..."
         cmd_stop
+        sleep 2
     fi
     
-    print_info "Rebuilding image..."
-    docker_compose build --no-cache
+    print_info "Rebuilding container image (this may take a few minutes)..."
+    if ! docker_compose build --no-cache; then
+        print_error "Failed to build container image"
+        return 1
+    fi
+    
+    print_success "Container image rebuilt successfully!"
     
     if [ "$was_running" = true ]; then
+        echo ""
         print_info "Restarting container..."
         cmd_start
+        
+        # Verify the server is running with new version
+        echo ""
+        print_info "Verifying update..."
+        sleep 5
+        
+        if container_running; then
+            # Check version in container environment
+            local running_version
+            running_version=$(sudo docker exec "${CONTAINER_NAME}" printenv TERRARIA_VERSION 2>/dev/null)
+            if [ -n "$running_version" ]; then
+                echo "  Running version: ${running_version}"
+            fi
+            print_success "Server is running!"
+        else
+            print_warning "Server may not have started correctly. Check logs with: $0 logs"
+        fi
+    else
+        print_info "Container was not running. Start with: $0 start"
     fi
     
-    print_success "Update complete!"
+    return 0
 }
 
 #-------------------------------------------------------------------------------
@@ -820,6 +1214,7 @@ cmd_help() {
     echo -e "  ${GREEN}backup${NC} [world]           Create a backup (all worlds or specific)"
     echo -e "  ${GREEN}restore${NC} <backup-file>    Restore from a backup file"
     echo -e "  ${GREEN}backups${NC}                  List all available backups"
+    echo -e "  ${GREEN}backup-schedule${NC}          Configure automatic backup schedule"
     echo ""
     echo -e "  ${GREEN}logs${NC} [lines]             Show container logs (default: 100 lines)"
     echo -e "  ${GREEN}livelogs${NC}                 Follow container logs in real-time"
@@ -828,7 +1223,7 @@ cmd_help() {
     echo -e "  ${GREEN}shell${NC}                    Open a bash shell in the container"
     echo -e "  ${GREEN}exec${NC} <cmd>               Execute a shell command in container"
     echo ""
-    echo -e "  ${GREEN}update${NC}                   Rebuild the container image"
+    echo -e "  ${GREEN}update${NC} [version]         Update Terraria to a new version (e.g., 1453)"
     echo -e "  ${GREEN}help${NC}                     Show this help message"
     echo ""
     echo -e "${BOLD}Examples:${NC}"
@@ -841,7 +1236,10 @@ cmd_help() {
     echo "  $0 backup                         # Backup all worlds"
     echo "  $0 backup florida                 # Backup specific world"
     echo "  $0 restore backup_florida_20260128_120000.tar.gz"
+    echo "  $0 backup-schedule                # Configure automatic backups"
     echo "  $0 logs 50                        # Show last 50 log lines"
+    echo "  $0 update                         # Rebuild with current version"
+    echo "  $0 update 1453                    # Update to Terraria 1.4.5.3"
     echo ""
 }
 
@@ -886,6 +1284,9 @@ main() {
             ;;
         backups|list-backups)
             cmd_backups "$@"
+            ;;
+        backup-schedule|schedule|schedule-backup)
+            cmd_backup_schedule "$@"
             ;;
         logs)
             cmd_logs "$@"

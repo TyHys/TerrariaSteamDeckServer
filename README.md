@@ -123,7 +123,7 @@ The `./server.sh` script provides all management functionality:
 | `./server.sh console` | Attach to Terraria server console |
 | `./server.sh shell` | Open a bash shell in the container |
 | `./server.sh exec <cmd>` | Execute a command in the container |
-| `./server.sh update` | Rebuild the container image |
+| `./server.sh update [version]` | Update Terraria to a new version (e.g., 1453) |
 | `./server.sh help` | Show all available commands |
 
 ### Make Commands (if installed)
@@ -171,6 +171,33 @@ All configuration is done via environment variables in the `.env` file.
 | `BACKUP_RETENTION` | `48` | Number of backups to keep |
 
 See `.env.example` for all available options.
+
+## Updating Terraria Version
+
+To update the server to a new Terraria version:
+
+```bash
+./server.sh update 1453    # Update to version 1.4.5.3
+```
+
+### Finding Version Numbers
+
+Terraria uses a condensed 4-digit version format:
+
+| Game Version | Server Version |
+|--------------|----------------|
+| 1.4.4.9      | 1449           |
+| 1.4.5.0      | 1450           |
+| 1.4.5.1      | 1451           |
+| 1.4.5.3      | 1453           |
+
+**Pattern:** Remove dots and trailing zeros (e.g., `1.4.5.3` → `1453`)
+
+**Official Resources:**
+- [Terraria Wiki - Server Downloads](https://terraria.wiki.gg/wiki/Server#Downloads) - List of all available server versions
+- Direct download URL pattern: `https://terraria.org/api/download/pc-dedicated-server/terraria-server-{VERSION}.zip`
+
+> **Note:** Players must be on the same version as the server to connect. Coordinate updates with your players.
 
 ## Architecture
 

@@ -4,6 +4,7 @@ Complete reference for all configuration options in the Terraria Steam Deck Serv
 
 ## Table of Contents
 
+- [Terraria Version](#terraria-version)
 - [Configuration File](#configuration-file)
 - [World Settings](#world-settings)
 - [Server Settings](#server-settings)
@@ -11,6 +12,52 @@ Complete reference for all configuration options in the Terraria Steam Deck Serv
 - [Backup Settings](#backup-settings)
 - [Advanced Settings](#advanced-settings)
 - [Applying Changes](#applying-changes)
+
+---
+
+## Terraria Version
+
+The Terraria server version is set in the Dockerfile, not in `.env`.
+
+### Current Version
+
+Check your current version:
+
+```bash
+grep "ARG TERRARIA_VERSION" docker/Dockerfile
+```
+
+### Updating the Version
+
+Use the update command:
+
+```bash
+./server.sh update 1453    # Update to version 1.4.5.3
+```
+
+This will:
+1. Verify the version exists on terraria.org
+2. Update the Dockerfile
+3. Rebuild and restart the container
+
+### Finding Available Versions
+
+Terraria uses a condensed 4-digit version format:
+
+| Game Version | Server Version |
+|--------------|----------------|
+| 1.4.4.9      | 1449           |
+| 1.4.5.0      | 1450           |
+| 1.4.5.1      | 1451           |
+| 1.4.5.3      | 1453           |
+
+**Pattern:** Remove dots and trailing zeros (e.g., `1.4.5.3` → `1453`)
+
+**Official Resources:**
+- [Terraria Wiki - Server Downloads](https://terraria.wiki.gg/wiki/Server#Downloads) - Complete list of available versions
+- Direct download URL: `https://terraria.org/api/download/pc-dedicated-server/terraria-server-{VERSION}.zip`
+
+> **Important:** Players must be on the same game version as the server to connect. Coordinate updates with your players.
 
 ---
 
