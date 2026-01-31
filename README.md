@@ -6,10 +6,13 @@ A Docker-containerized Terraria dedicated server optimized for Steam Deck device
 
 - **Terraria Dedicated Server** - Official Terraria server binary (v1.4.5.3)
 - **CLI Management** - Simple command-line management via `./server.sh`
-- **Automated Backups** - Scheduled backups with configurable retention
-- **Process Management** - Automatic crash recovery with Supervisor
-- **Easy Configuration** - Environment variables for all settings
-- **Steam Deck Optimized** - Resource limits suitable for Steam Deck hardware
+- **Automated Backups** - Scheduled backups with configurable retention and compression
+- **Process Management** - Automatic crash recovery with Supervisor and exponential backoff
+- **Easy Configuration** - Environment variables for all settings via `.env` file
+- **Steam Deck Optimized** - Resource limits (1.5GB RAM) suitable for Steam Deck hardware
+- **Health Monitoring** - Built-in health checks for all services
+- **Graceful Shutdown** - Proper world saving on container stop (45 second grace period)
+- **Log Management** - Automatic log rotation to prevent disk space issues
 
 ## Quick Start
 
@@ -106,71 +109,89 @@ The `./server.sh` script provides all management functionality:
 
 ### Full Command Reference
 
+#### Server Control
+
 | Command | Description |
 |---------|-------------|
 | `./server.sh start` | Start the server container |
-| `./server.sh stop` | Stop the server container |
+| `./server.sh stop` | Stop the server container (saves world, up to 45s) |
 | `./server.sh restart` | Restart the server container |
-| `./server.sh status` | Show server status, worlds, and info |
-| `./server.sh save` | Save the world (crash protection) |
-| `./server.sh say <message>` | Broadcast a message to all players |
-| `./server.sh command <cmd>` | Send any Terraria server command |
-| `./server.sh backup [world]` | Create a backup (all or specific world) |
-| `./server.sh restore <file>` | Restore from a backup file |
-| `./server.sh backups` | List all available backups |
-| `./server.sh logs [lines]` | Show container logs (default: 100) |
-| `./server.sh livelogs` | Follow container logs in real-time |
-| `./server.sh console` | Attach to Terraria server console |
-| `./server.sh shell` | Open a bash shell in the container |
-| `./server.sh exec <cmd>` | Execute a command in the container |
-| `./server.sh update [version]` | Update Terraria to a new version (e.g., 1453) |
-| `./server.sh help` | Show all available commands |
+| `./server.sh status` | Show server status, players, worlds, backups, and network info |
+| `./server.sh players` | Show currently online players |
 
-### Make Commands (if installed)
-
-If you have `make` installed, you can use these shortcuts:
+#### In-Game Commands
 
 | Command | Description |
 |---------|-------------|
-| `make setup` | First-time setup (creates .env and directories) |
-| `make build` | Build the Docker image |
-| `make start` | Start the server (detached) |
-| `make stop` | Stop the server |
-| `make restart` | Restart the server |
-| `make logs` | Follow server logs |
-| `make status` | Show server and service status |
-| `make health` | Run health check |
-| `make shell` | Open shell inside container |
-| `make backup` | Create manual backup |
-| `make worlds` | List worlds |
-| `make backups` | List backups |
-| `make test` | Run integration tests |
-| `make clean` | Stop and remove container |
+| `./server.sh save` | Save the world immediately (with optional backup prompt) |
+| `./server.sh say <message>` | Broadcast a message to all players |
+| `./server.sh command <cmd>` | Send any Terraria server command (help, playing, kick, ban, etc.) |
+
+#### Backup Management
+
+| Command | Description |
+|---------|-------------|
+| `./server.sh backup [world]` | Create a backup (all or specific world) |
+| `./server.sh restore <file>` | Restore from a backup file (host-based, no container needed) |
+| `./server.sh backups` | List all available backups with size and date |
+| `./server.sh backup-schedule` | Interactive configuration for automatic backups |
+
+#### Logs and Debugging
+
+| Command | Description |
+|---------|-------------|
+| `./server.sh logs [lines]` | Show container logs (default: 100 lines) |
+| `./server.sh livelogs` | Follow container logs in real-time (Ctrl+C to exit) |
+| `./server.sh console` | Attach to Terraria server console (Ctrl+P, Ctrl+Q to detach) |
+| `./server.sh shell` | Open a bash shell in the container |
+| `./server.sh exec <cmd>` | Execute a command in the container |
+
+#### Updates and Maintenance
+
+| Command | Description |
+|---------|-------------|
+| `./server.sh update [version]` | Update Terraria to a new version (e.g., 1453 for v1.4.5.3) |
+| `./server.sh help` | Show all available commands with examples |
 
 ## Configuration
 
-All configuration is done via environment variables in the `.env` file.
+All configuration is done via environment variables in the `.env` file. Run `./install.sh` or `cp .env.example .env` to create the file from the template.
 
 ### Game Settings
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `WORLD_NAME` | `world` | World name |
-| `WORLD_SIZE` | `2` | 1=Small, 2=Medium, 3=Large |
-| `DIFFICULTY` | `0` | 0=Normal, 1=Expert, 2=Master, 3=Journey |
-| `MAX_PLAYERS` | `8` | Maximum concurrent players |
-| `SERVER_PASSWORD` | *(empty)* | Server password |
-| `MOTD` | `Welcome...` | Message of the day |
+| `WORLD_NAME` | `world` | World name (without .wld extension) |
+| `WORLD_SIZE` | `2` | 1=Small (~40MB), 2=Medium (~80MB), 3=Large (~160MB) |
+| `DIFFICULTY` | `0` | 0=Classic, 1=Expert, 2=Master, 3=Journey |
+| `MAX_PLAYERS` | `8` | Maximum concurrent players (1-255, 8-16 recommended for Steam Deck) |
+| `SERVER_PORT` | `7777` | TCP port for game connections |
+| `SERVER_PASSWORD` | *(empty)* | Server password (leave empty for no password) |
+| `MOTD` | `Welcome to the Terraria Server!` | Message shown to players on join |
+| `AUTOCREATE` | `2` | Auto-create world if missing: 0=disabled, 1=small, 2=medium, 3=large |
+| `WORLD_SEED` | *(empty)* | Seed for world generation (leave empty for random) |
+| `SECURE` | `1` | Anti-cheat: 0=disabled, 1=enabled |
+| `LANGUAGE` | `en-US` | Server language |
 
 ### Backup Settings
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BACKUP_ENABLED` | `true` | Enable automatic backups |
-| `BACKUP_INTERVAL` | `30` | Minutes between backups |
-| `BACKUP_RETENTION` | `48` | Number of backups to keep |
+| `BACKUP_INTERVAL` | `30` | Minutes between backups (recommended: 15-60) |
+| `BACKUP_RETENTION` | `48` | Number of backups to keep (~24 hours at 30-min intervals) |
+| `BACKUP_ON_STARTUP` | `false` | Create backup when container starts |
+| `BACKUP_COMPRESSION` | `gzip` | Compression type: `gzip` (smaller) or `none` (faster) |
 
-See `.env.example` for all available options.
+### Process Management
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RESTART_DELAY` | `5` | Initial delay (seconds) before restarting after crash |
+| `RESTART_DELAY_MAX` | `60` | Maximum delay between restart attempts |
+| `RESTART_DELAY_MULTIPLIER` | `2` | Multiplier for exponential backoff |
+
+See `.env.example` for the complete template with comments, or [CONFIGURATION.md](docs/CONFIGURATION.md) for detailed explanations.
 
 ## Updating Terraria Version
 
@@ -202,31 +223,55 @@ Terraria uses a condensed 4-digit version format:
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Docker Container                      │
-│  ┌─────────────────┐  ┌─────────────────────────────┐   │
-│  │ Terraria Server │  │      Backup Scheduler       │   │
-│  │   (Port 7777)   │  │    (Automated Backups)      │   │
-│  └─────────────────┘  └─────────────────────────────┘   │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │              Supervisor (Process Mgmt)          │    │
-│  └─────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────┘
-         │                        │
-         ▼                        ▼
-┌─────────────────┐    ┌─────────────────────────────┐
-│  Volume: Worlds │    │  Volume: Backups & Logs     │
-└─────────────────┘    └─────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                      Docker Container                            │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │                  Supervisor (Process Manager)              │  │
+│  │                    - Auto-restart on crash                 │  │
+│  │                    - Exponential backoff                   │  │
+│  │                    - Graceful shutdown handling            │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                │                              │                  │
+│                ▼                              ▼                  │
+│  ┌─────────────────────────┐    ┌─────────────────────────────┐  │
+│  │   Terraria Server       │    │     Backup Scheduler        │  │
+│  │   (Port 7777/TCP)       │    │   - Scheduled backups       │  │
+│  │   - World management    │    │   - Retention policy        │  │
+│  │   - Player connections  │    │   - Compression support     │  │
+│  │   - Command FIFO input  │    │   - Per-world management    │  │
+│  └─────────────────────────┘    └─────────────────────────────┘  │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │              Health Check & Log Rotation                   │  │
+│  └────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
+                    │            │            │
+                    ▼            ▼            ▼
+            ┌───────────┐ ┌───────────┐ ┌───────────┐
+            │  Worlds   │ │  Backups  │ │   Logs    │
+            │ data/     │ │ data/     │ │ data/     │
+            │ worlds/   │ │ backups/  │ │ logs/     │
+            └───────────┘ └───────────┘ └───────────┘
 ```
+
+### Resource Limits (Steam Deck Optimized)
+
+| Resource | Limit | Reserved |
+|----------|-------|----------|
+| Memory | 1536 MB | 768 MB |
+| Shutdown Grace Period | 45 seconds | - |
 
 ## Data Persistence
 
-All data is stored in the `data/` directory:
+All data is stored in the `data/` directory and persists across container restarts:
 
-- `data/worlds/` - World files (.wld)
-- `data/backups/` - Compressed backup archives
-- `data/logs/` - Server and application logs
-- `data/config/` - Runtime configuration
+| Directory | Contents |
+|-----------|----------|
+| `data/worlds/` | World files (.wld) and automatic backups (.wld.bak) |
+| `data/backups/` | Compressed backup archives with timestamps |
+| `data/logs/` | Server, Supervisor, and backup scheduler logs |
+| `data/config/` | Runtime configuration files |
 
 ## Port Forwarding (for Public Hosting)
 
@@ -247,21 +292,49 @@ Comprehensive documentation is available in the `docs/` folder:
 | [NETWORKING.md](docs/NETWORKING.md) | Port forwarding, firewall, remote access |
 | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions |
 
+## Terraria Server Commands
+
+You can send any Terraria server command using `./server.sh command <cmd>`:
+
+| Command | Description |
+|---------|-------------|
+| `help` | Show server command help |
+| `playing` | Show connected players |
+| `save` | Save the world |
+| `exit` | Save and shutdown server |
+| `kick <player>` | Kick a player |
+| `ban <player>` | Ban a player |
+| `password <pass>` | Change server password |
+| `motd <message>` | Change message of the day |
+| `say <message>` | Broadcast a message |
+| `time` | Show current in-game time |
+| `dawn/noon/dusk/midnight` | Set time of day |
+| `settle` | Settle all liquids |
+
 ## Troubleshooting
 
 Quick fixes for common issues. For detailed troubleshooting, see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
-### Server won't start
+| Problem | Quick Fix |
+|---------|-----------|
+| Server won't start | `./server.sh stop && ./server.sh start` |
+| Check server status | `./server.sh status` |
+| View recent logs | `./server.sh logs 50` |
+| Terraria crash | Check `data/logs/terraria-stderr.log` |
+| No backups running | Verify `BACKUP_ENABLED=true` in `.env` |
+| Out of memory | Increase limits in `docker/docker-compose.yml` |
+| World corrupt | Restore from backup: `./server.sh restore <backup-file>` |
+| Connection refused | Check firewall, port forwarding |
+| Container missing | `./server.sh start` |
 
-1. Check logs: `./server.sh logs`
-2. Verify configuration: `./server.sh status`
-3. Check container health: `docker exec terraria-server /terraria/scripts/healthcheck.sh`
+### Diagnostic Commands
 
-### Can't connect to game server
-
-1. Check if server is running: `./server.sh status`
-2. Verify port 7777 is not blocked by firewall
-3. For remote players, ensure port 7777 is forwarded
+```bash
+./server.sh status                    # Full status overview
+./server.sh logs 100                  # View recent logs
+./server.sh exec /terraria/scripts/healthcheck.sh  # Run health check
+docker stats terraria-server          # Resource usage
+```
 
 ## Development
 
@@ -270,28 +343,57 @@ Quick fixes for common issues. For detailed troubleshooting, see [docs/TROUBLESH
 ```
 TerrariaSteamDeckServer/
 ├── docker/
-│   ├── Dockerfile          # Multi-stage build
-│   └── docker-compose.yml  # Container orchestration
+│   ├── Dockerfile              # Multi-stage build for Terraria server
+│   └── docker-compose.yml      # Container orchestration with resource limits
 ├── server/
-│   ├── config/             # Server configurations
-│   └── scripts/            # Management scripts
-├── data/                   # Persistent data (volumes)
-├── server.sh               # CLI management script
-├── install.sh              # Quick install script (Steam Deck)
-├── Makefile                # Build/run commands
-└── .env.example            # Configuration template
+│   ├── config/
+│   │   ├── serverconfig.txt    # Server configuration template
+│   │   ├── supervisord.conf    # Process manager configuration
+│   │   └── logrotate.conf      # Log rotation settings
+│   └── scripts/
+│       ├── entrypoint.sh       # Container initialization
+│       ├── terraria-wrapper.sh # Server wrapper with crash recovery
+│       ├── backup.sh           # Backup creation and management
+│       ├── backup-scheduler.sh # Automated backup scheduling
+│       ├── healthcheck.sh      # Container health verification
+│       ├── crash-handler.sh    # Crash event notification
+│       ├── server-control.sh   # Internal server control
+│       ├── world-manager.sh    # World file management
+│       └── restore.sh          # Backup restoration
+├── data/                       # Persistent data (bind-mounted volumes)
+│   ├── worlds/                 # World files
+│   ├── backups/                # Backup archives
+│   ├── logs/                   # Server logs
+│   └── config/                 # Runtime configuration
+├── docs/                       # Documentation
+├── tests/                      # Validation scripts
+├── server.sh                   # Main CLI management script
+├── install.sh                  # Quick install script (Steam Deck)
+├── .env.example                # Configuration template
+└── README.md                   # This file
 ```
 
-### Building from source
+### Building from Source
 
 ```bash
-docker compose -f docker/docker-compose.yml build --no-cache
+# Using server.sh (recommended)
+./server.sh build               # Build with cache
+./server.sh build --no-cache    # Fresh build without cache
+./server.sh update              # Rebuild with current version (uses --no-cache)
+
+# Using docker compose directly
+sudo docker compose -f docker/docker-compose.yml --env-file .env build
+sudo docker compose -f docker/docker-compose.yml --env-file .env build --no-cache
 ```
 
-### Running tests
+### Running Tests
 
 ```bash
+# Validation test (file structure, syntax)
 ./tests/validate.sh
+
+# Full integration test (build, start, health check, stop)
+./server.sh test
 ```
 
 ## Steam Deck Notes
@@ -333,24 +435,6 @@ docker --version
 docker run hello-world
 ```
 
-> **Warning:** Packages installed via `pacman` may be removed during SteamOS updates. You may need to reinstall Docker after major updates. Your data in `data/` will be preserved.
-
-### Installing Make (Optional)
-
-If you prefer using `make` commands, you can install it on Steam Deck:
-
-```bash
-# Disable read-only filesystem
-sudo steamos-readonly disable
-
-# Install make
-sudo pacman -S make --noconfirm
-
-# Re-enable read-only filesystem (recommended)
-sudo steamos-readonly enable
-```
-
-> **Warning:** Packages installed via `pacman` may be removed during SteamOS updates. You may need to reinstall after major updates.
 
 ### Running in Desktop Mode
 
@@ -362,10 +446,36 @@ This server is designed to run in Steam Deck's Desktop Mode. You can:
 
 ### Gaming While Hosting
 
-The server can run in the background while you play Terraria (or other games). The Docker container is configured with resource limits to prevent impacting game performance. For best results:
+The server can run in the background while you play Terraria (or other games). The Docker container is configured with resource limits to prevent impacting game performance:
 
-- Start the server before launching your game
-- Monitor resource usage with `docker stats` if you experience issues
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| Memory Limit | 1536 MB | Prevents server from consuming too much RAM |
+| Memory Reserved | 768 MB | Guarantees minimum memory for server |
+| Shutdown Grace | 45 seconds | Ensures world saves before stopping |
+
+**Tips for best performance:**
+
+- Start the server in Desktop Mode before launching your game
+- Switch to Game Mode after server is running
+- Monitor resource usage: `docker stats terraria-server --no-stream`
+- For extended hosting, connect to power (server uses ~5-10W additional)
+- Ensure adequate ventilation for thermal management
+
+### After SteamOS Updates
+
+SteamOS updates may remove packages installed via `pacman`. If Docker stops working after an update:
+
+```bash
+# Re-install Docker
+sudo steamos-readonly disable
+sudo pacman -S docker docker-compose --noconfirm
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo steamos-readonly enable
+```
+
+Your world data in `data/` is preserved and will work immediately after reinstalling.
 
 ## License
 
@@ -373,21 +483,25 @@ This project is provided for personal use. Terraria is a registered trademark of
 
 ## Version
 
-Current version: **10.0.0** (CLI Management)
+**Current version: 10.0.0** (CLI Management)
+
+Terraria Server Version: **1.4.5.3** (1453) - can be updated via `./server.sh update`
 
 ### Changelog
 
-- **10.0.0** - Removed web interface, CLI-only management via ./server.sh
-- **9.0.0** - Pure HTML dashboard, authentication removed, simplified deployment
-- **8.0.0** - Testing & Polish phase complete, production-ready release
-- **7.0.0** - Complete documentation suite
-- **6.0.0** - Multi-stage Docker build, Makefile, health checks
-- **5.0.0** - Web frontend interface
-- **4.0.0** - REST API backend
-- **3.0.0** - World management and automated backups
-- **2.0.0** - Process management with Supervisor
-- **1.0.0** - Initial Docker infrastructure
+| Version | Release | Description |
+|---------|---------|-------------|
+| **10.0.0** | Current | CLI-only management via `./server.sh`, host-based restore, backup scheduling |
+| 9.0.0 | - | Pure HTML dashboard, authentication removed, simplified deployment |
+| 8.0.0 | - | Testing & Polish phase complete, production-ready release |
+| 7.0.0 | - | Complete documentation suite |
+| 6.0.0 | - | Multi-stage Docker build, Makefile, health checks |
+| 5.0.0 | - | Web frontend interface |
+| 4.0.0 | - | REST API backend |
+| 3.0.0 | - | World management and automated backups |
+| 2.0.0 | - | Process management with Supervisor |
+| 1.0.0 | - | Initial Docker infrastructure |
 
 ---
 
-*Built for Steam Deck gaming enthusiasts*
+*Built for Steam Deck gaming enthusiasts* | [Setup Guide](docs/SETUP.md) | [Configuration](docs/CONFIGURATION.md) | [Troubleshooting](docs/TROUBLESHOOTING.md)

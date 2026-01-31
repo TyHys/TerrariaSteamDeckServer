@@ -91,9 +91,9 @@ docker stats terraria-server --no-stream
 
 3. **Rebuild the container:**
    ```bash
-   make clean
-   make build
-   make start
+   ./server.sh clean
+   ./server.sh build
+   ./server.sh start
    ```
 
 ### Server Crashes Repeatedly
@@ -451,7 +451,7 @@ docker stats terraria-server --no-stream
    ```bash
    docker images | grep terraria
    ```
-   If missing, run `make build`.
+   If missing, run `./server.sh build`.
 
 4. **Check docker-compose syntax:**
    ```bash
@@ -461,7 +461,7 @@ docker stats terraria-server --no-stream
 ### Build Fails
 
 **Symptoms:**
-- `make build` errors
+- `./server.sh build` errors
 - Image not created
 
 **Solutions:**
@@ -473,7 +473,7 @@ docker stats terraria-server --no-stream
 
 2. **Clear Docker cache:**
    ```bash
-   make build-no-cache
+   ./server.sh build --no-cache
    ```
 
 3. **Check disk space:**
@@ -685,7 +685,7 @@ When reporting a bug, include:
 
 | Problem | Quick Fix |
 |---------|-----------|
-| Server won't start | `make clean && make start` |
+| Server won't start | `./server.sh clean && ./server.sh start` |
 | Terraria crash | Check `/terraria/logs/crashes.log` |
 | No backups | Check `BACKUP_ENABLED=true` |
 | Port conflict | Change port in `.env`, restart |

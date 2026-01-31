@@ -188,15 +188,17 @@ preflight_checks() {
 setup_command_fifo() {
     log "Setting up command FIFO at ${COMMAND_FIFO}..."
     
-    # Remove old FIFO if it exists
-    rm -f "${COMMAND_FIFO}"
-    
-    # Create new FIFO with world-writable permissions
-    mkfifo -m 0666 "${COMMAND_FIFO}"
-    
-    # Ensure it's owned by terraria user and world-writable
-    chown terraria:terraria "${COMMAND_FIFO}" 2>/dev/null || true
-    chmod 0666 "${COMMAND_FIFO}"
+    # Check if FIFO already exists and is valid (created by entrypoint)
+    if [ -p "${COMMAND_FIFO}" ]; then
+        log "Command FIFO already exists, verifying permissions..."
+        chmod 0666 "${COMMAND_FIFO}" 2>/dev/null || true
+    else
+        # Create new FIFO if it doesn't exist (fallback)
+        log "Creating new command FIFO..."
+        rm -f "${COMMAND_FIFO}"
+        mkfifo -m 0666 "${COMMAND_FIFO}"
+        chown terraria:terraria "${COMMAND_FIFO}" 2>/dev/null || true
+    fi
     
     log "Command FIFO ready. Send commands with: echo 'command' > ${COMMAND_FIFO}"
 }

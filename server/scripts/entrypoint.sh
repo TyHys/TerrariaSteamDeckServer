@@ -52,6 +52,26 @@ init_directories() {
 }
 
 #---------------------------------------------------------------
+# Initialize command FIFO for server commands
+#---------------------------------------------------------------
+init_command_fifo() {
+    local COMMAND_FIFO="/tmp/terraria-command.fifo"
+    
+    log "Initializing command FIFO..."
+    
+    # Remove any stale FIFO from previous runs (we're root, so we can always remove it)
+    rm -f "${COMMAND_FIFO}"
+    
+    # Create fresh FIFO with world-writable permissions
+    mkfifo -m 0666 "${COMMAND_FIFO}"
+    
+    # Set ownership to terraria user so the wrapper can manage it
+    chown terraria:terraria "${COMMAND_FIFO}"
+    
+    log "Command FIFO initialized at ${COMMAND_FIFO}"
+}
+
+#---------------------------------------------------------------
 # Set up log rotation cron job
 #---------------------------------------------------------------
 setup_logrotate() {
@@ -146,6 +166,9 @@ main() {
     
     # Initialize directories and permissions
     init_directories
+    
+    # Initialize command FIFO (must be done as root before supervisor starts)
+    init_command_fifo
     
     # Set up log rotation
     setup_logrotate

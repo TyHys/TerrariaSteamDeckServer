@@ -60,7 +60,6 @@ required_files=(
     "server/config/serverconfig.txt"
     "server/config/logrotate.conf"
     ".env.example"
-    "Makefile"
     "README.md"
     "server.sh"
     "docs/SETUP.md"

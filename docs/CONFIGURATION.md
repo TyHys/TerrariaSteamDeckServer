@@ -70,7 +70,7 @@ All configuration is done through the `.env` file in the project root.
 If you haven't already, create the configuration file:
 
 ```bash
-make setup
+./server.sh setup
 ```
 
 Or manually:
@@ -498,7 +498,7 @@ If you modify the Dockerfile:
 ```bash
 ./server.sh update
 # or
-make build && make restart
+./server.sh build && ./server.sh restart
 ```
 
 ---

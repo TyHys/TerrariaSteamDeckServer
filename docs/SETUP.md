@@ -137,7 +137,6 @@ TerrariaSteamDeckServer/
 ├── data/           (created after setup)
 ├── server.sh       # Main management script
 ├── install.sh
-├── Makefile
 ├── .env.example
 └── README.md
 ```
@@ -151,7 +150,7 @@ TerrariaSteamDeckServer/
 The setup command creates necessary directories and configuration files:
 
 ```bash
-make setup
+./server.sh setup
 ```
 
 Or use the install script:
@@ -208,14 +207,14 @@ In nano: Press `Ctrl+O` to save, then `Ctrl+X` to exit.
 ./server.sh start
 ```
 
-### Using Make Commands
+### Using server.sh (Recommended)
 
 ```bash
 # Build the Docker image (first time or after updates)
-make build
+./server.sh build
 
 # Start the server
-make start
+./server.sh start
 ```
 
 ### Using Docker Compose Directly
@@ -357,13 +356,13 @@ Version is displayed in the status output.
 ### Stop and Remove Container
 
 ```bash
-make clean
+./server.sh clean
 ```
 
 ### Remove All Data (Destructive!)
 
 ```bash
-make clean-all
+./server.sh clean-all
 ```
 
 This removes:
