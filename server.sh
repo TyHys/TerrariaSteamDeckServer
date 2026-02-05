@@ -57,8 +57,8 @@ cmd_help() {
     echo -e "  ${GREEN}backups${NC}                  List all available backups"
     echo -e "  ${GREEN}backup-schedule${NC}          Configure automatic backup schedule"
     echo ""
-    echo -e "  ${GREEN}logs${NC} [lines]             Show container logs (default: 100 lines)"
-    echo -e "  ${GREEN}livelogs${NC}                 Follow container logs in real-time"
+    echo -e "  ${GREEN}docker-logs${NC} [lines]      Show container logs (default: 100 lines)"
+    echo -e "  ${GREEN}game-logs${NC} [lines]        Show Terraria server stdout logs"
     echo ""
     echo -e "  ${GREEN}console${NC}                  Attach to Terraria server console"
     echo -e "  ${GREEN}shell${NC}                    Open a bash shell in the container"
@@ -84,7 +84,8 @@ cmd_help() {
     echo "  $0 backup florida                 # Backup specific world"
     echo "  $0 restore backup_florida_20260128_120000.tar.gz"
     echo "  $0 backup-schedule                # Configure automatic backups"
-    echo "  $0 logs 50                        # Show last 50 log lines"
+    echo "  $0 docker-logs 50                 # Show last 50 container log lines
+  $0 game-logs                      # Show server stdout logs"
     echo "  $0 update                         # Rebuild with current version"
     echo "  $0 update 1453                    # Update to Terraria 1.4.5.3"
     echo ""
@@ -142,11 +143,11 @@ main() {
             ;;
         
         # Interact commands
-        logs)
-            cmd_logs "$@"
+        docker-logs)
+            cmd_docker_logs "$@"
             ;;
-        livelogs|live|follow)
-            cmd_livelogs "$@"
+        game-logs)
+            cmd_game_logs "$@"
             ;;
         console|attach)
             cmd_console "$@"

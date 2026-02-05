@@ -7,7 +7,7 @@
 #===============================================================
 FROM debian:bookworm-slim AS terraria-download
 
-ARG TERRARIA_VERSION=1453
+ARG TERRARIA_VERSION=1454
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
@@ -32,7 +32,7 @@ LABEL description="Terraria Dedicated Server optimized for Steam Deck"
 LABEL version="10.0.0"
 
 # Environment variables for game configuration
-ENV TERRARIA_VERSION=1453
+ENV TERRARIA_VERSION=1454
 ENV WORLD_NAME="world"
 ENV WORLD_SIZE="2"
 ENV MAX_PLAYERS="8"

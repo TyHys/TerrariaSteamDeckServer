@@ -1,13 +1,13 @@
 #!/bin/bash
 #===============================================================================
-# Interact Commands - logs, livelogs, console, shell, exec
+# Interact Commands - docker-logs, game-logs, console, shell, exec
 # Sourced by server.sh - do not run directly
 #===============================================================================
 
 #-------------------------------------------------------------------------------
-# Command: logs
+# Command: docker-logs (formerly logs)
 #-------------------------------------------------------------------------------
-cmd_logs() {
+cmd_docker_logs() {
     local lines="${1:-100}"
     
     print_header "Container Logs (last ${lines} lines)"
@@ -21,18 +21,24 @@ cmd_logs() {
 }
 
 #-------------------------------------------------------------------------------
-# Command: livelogs
+# Command: game-logs
 #-------------------------------------------------------------------------------
-cmd_livelogs() {
-    print_header "Live Container Logs (Ctrl+C to exit)"
+cmd_game_logs() {
+    local lines="${1:-100}"
+    local log_file="${DATA_DIR}/logs/terraria-stdout.log"
     
-    if ! container_running; then
-        print_error "Container is not running"
+    print_header "Game Logs (last ${lines} lines)"
+    
+    if [ ! -f "${log_file}" ]; then
+        print_error "Log file not found: ${log_file}"
+        print_info "The server may not have started yet or logs are not being written."
         return 1
     fi
     
-    sudo docker logs -f "${CONTAINER_NAME}"
+    tail -n "${lines}" "${log_file}"
 }
+
+
 
 #-------------------------------------------------------------------------------
 # Command: console

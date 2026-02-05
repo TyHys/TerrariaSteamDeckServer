@@ -99,7 +99,8 @@ The `./server.sh` script provides all management functionality:
 ./server.sh start     # Start the server
 ./server.sh stop      # Stop the server
 ./server.sh restart   # Restart the server
-./server.sh logs      # View server logs
+./server.sh docker-logs # View container logs
+./server.sh game-logs   # View game logs
 ./server.sh backup    # Create a backup
 ./server.sh backups   # List all backups
 ./server.sh restore <backup-file>  # Restore from backup
@@ -140,8 +141,8 @@ The `./server.sh` script provides all management functionality:
 
 | Command | Description |
 |---------|-------------|
-| `./server.sh logs [lines]` | Show container logs (default: 100 lines) |
-| `./server.sh livelogs` | Follow container logs in real-time (Ctrl+C to exit) |
+| `./server.sh docker-logs [lines]` | Show container logs (system/service logs) (default: 100 lines) |
+| `./server.sh game-logs [lines]` | Show Terraria server stdout logs (default: 100 lines) |
 | `./server.sh console` | Attach to Terraria server console (Ctrl+P, Ctrl+Q to detach) |
 | `./server.sh shell` | Open a bash shell in the container |
 | `./server.sh exec <cmd>` | Execute a command in the container |
@@ -319,7 +320,8 @@ Quick fixes for common issues. For detailed troubleshooting, see [docs/TROUBLESH
 |---------|-----------|
 | Server won't start | `./server.sh stop && ./server.sh start` |
 | Check server status | `./server.sh status` |
-| View recent logs | `./server.sh logs 50` |
+| View recent game logs | `./server.sh game-logs 50` |
+| View container logs | `./server.sh docker-logs 50` |
 | Terraria crash | Check `data/logs/terraria-stderr.log` |
 | No backups running | Verify `BACKUP_ENABLED=true` in `.env` |
 | Out of memory | Increase limits in `docker/docker-compose.yml` |
@@ -331,7 +333,8 @@ Quick fixes for common issues. For detailed troubleshooting, see [docs/TROUBLESH
 
 ```bash
 ./server.sh status                    # Full status overview
-./server.sh logs 100                  # View recent logs
+./server.sh docker-logs 100           # View recent container logs
+./server.sh game-logs 100             # View recent game logs
 ./server.sh exec /terraria/scripts/healthcheck.sh  # Run health check
 docker stats terraria-server          # Resource usage
 ```
