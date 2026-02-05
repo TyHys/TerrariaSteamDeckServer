@@ -137,6 +137,19 @@ The `./server.sh` script provides all management functionality:
 | `./server.sh backups` | List all available backups with size and date |
 | `./server.sh backup-schedule` | Interactive configuration for automatic backups |
 
+#### Google Drive Sync (rclone)
+
+| Command | Description |
+|---------|-------------|
+| `./server.sh gdrive-sync-setup` | Interactive setup for Google Drive integration |
+| `./server.sh gdrive-sync` | Manually sync local backups to Google Drive |
+| `./server.sh gdrive-auto start` | Start background sync daemon (hourly) |
+| `./server.sh gdrive-auto status` | Check status of sync daemon |
+| `./server.sh gdrive-auto stop` | Stop background sync daemon |
+
+> **Note:** Requires `rclone` to be installed on the host system.
+
+
 #### Logs and Debugging
 
 | Command | Description |
@@ -183,6 +196,14 @@ All configuration is done via environment variables in the `.env` file. Run `./i
 | `BACKUP_RETENTION` | `48` | Number of backups to keep (~24 hours at 30-min intervals) |
 | `BACKUP_ON_STARTUP` | `false` | Create backup when container starts |
 | `BACKUP_COMPRESSION` | `gzip` | Compression type: `gzip` (smaller) or `none` (faster) |
+
+### Google Drive Sync Settings
+
+| Variable | Description |
+|----------|-------------|
+| `RCLONE_REMOTE` | Name of the rclone remote (e.g., `MyGoogleDrive`) |
+| `RCLONE_PATH` | Path on the remote to sync to (e.g., `terraria-backups`) |
+
 
 ### Process Management
 
