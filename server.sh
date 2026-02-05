@@ -57,6 +57,10 @@ cmd_help() {
     echo -e "  ${GREEN}backups${NC}                  List all available backups"
     echo -e "  ${GREEN}backup-schedule${NC}          Configure automatic backup schedule"
     echo ""
+    echo -e "  ${GREEN}gdrive-sync-setup${NC}        Configure Google Drive backup (rclone)"
+    echo -e "  ${GREEN}gdrive-sync${NC}              Manually sync backups to Google Drive"
+    echo -e "  ${GREEN}gdrive-auto${NC} [action]     Manage auto-sync background daemon (start/stop/status)"
+    echo ""
     echo -e "  ${GREEN}docker-logs${NC} [lines]      Show container logs (default: 100 lines)"
     echo -e "  ${GREEN}game-logs${NC} [lines]        Show Terraria server stdout logs"
     echo ""
@@ -140,6 +144,17 @@ main() {
             ;;
         backup-schedule|schedule|schedule-backup)
             cmd_backup_schedule "$@"
+            ;;
+        
+        # Google Drive commands
+        gdrive-sync-setup|gdrive-setup)
+            cmd_gdrive_sync_setup "$@"
+            ;;
+        gdrive-sync)
+            cmd_gdrive_sync "$@"
+            ;;
+        gdrive-auto)
+            cmd_gdrive_auto "$@"
             ;;
         
         # Interact commands

@@ -30,6 +30,17 @@ cmd_backup() {
     
     echo ""
     print_success "Backup complete!"
+
+    # Trigger Google Drive sync if configured
+    if [ -f "${ENV_FILE}" ]; then
+        # Check if rclone vars are set in .env without sourcing the whole file yet if not needed, 
+        # or just call the function which handles the check safely.
+        # Since we source gdrive-commands.sh in server.sh, the function is available.
+        # Check if Rclone is configured
+        if grep -q "^RCLONE_REMOTE=" "${ENV_FILE}" && grep -q "^RCLONE_PATH=" "${ENV_FILE}"; then
+             cmd_gdrive_sync
+        fi
+    fi
     
     # List recent backups
     echo ""
