@@ -67,7 +67,7 @@ cmd_help() {
     echo -e "  ${GREEN}setup${NC}                    First-time setup (create .env, directories)"
     echo -e "  ${GREEN}build${NC} [--no-cache]       Build the Docker image"
     echo -e "  ${GREEN}update${NC} [version]         Update Terraria to a new version (e.g., 1453)"
-    echo -e "  ${GREEN}test${NC}                     Run integration tests"
+
     echo -e "  ${GREEN}clean${NC}                    Stop and remove container"
     echo -e "  ${GREEN}clean-all${NC}                Remove container, images, and volumes"
     echo ""
@@ -169,9 +169,7 @@ main() {
         setup|init)
             cmd_setup "$@"
             ;;
-        test)
-            cmd_test "$@"
-            ;;
+
         clean)
             cmd_clean "$@"
             ;;

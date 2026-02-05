@@ -49,7 +49,7 @@ cmd_build() {
 # Command: update
 # Updates the Terraria server to a new version
 # Usage: ./server.sh update [version]
-#   version: Optional 4-digit version number (e.g., 1453 for Terraria 1.4.5.3)
+#   version: Optional version number (positive integer, e.g., 1453 for Terraria 1.4.5.3)
 #            If not provided, just rebuilds with the current version
 #-------------------------------------------------------------------------------
 cmd_update() {
@@ -75,27 +75,22 @@ cmd_update() {
     
     echo -e "${BOLD}Current Version:${NC} ${current_version}"
     
-    # If no version specified, just rebuild with current version
+    # If no version specified, print error and exit
     if [ -z "$new_version" ]; then
+        print_error "Version argument required."
         echo ""
-        print_info "No version specified. Rebuilding with current version (${current_version})..."
+        echo "Usage: $0 update <version>"
+        echo "Example: $0 update 1453"
         echo ""
-        _do_update_rebuild
-        return $?
+        echo "Current version: ${current_version}"
+        echo ""
+        return 1
     fi
     
-    # Validate version format (should be 4 digits)
-    if ! [[ "$new_version" =~ ^[0-9]{4}$ ]]; then
+    # Validate version format (should be a positive integer)
+    if ! [[ "$new_version" =~ ^[0-9]+$ ]] || [ "$new_version" -le 0 ]; then
         print_error "Invalid version format: ${new_version}"
-        echo ""
-        echo "Version should be a 4-digit number, for example:"
-        echo "  1449 (for Terraria 1.4.4.9)"
-        echo "  1450 (for Terraria 1.4.5.0)"
-        echo "  1451 (for Terraria 1.4.5.1)"
-        echo "  1453 (for Terraria 1.4.5.3)"
-        echo ""
-        echo "Pattern: Remove dots and trailing zeros from game version"
-        echo "  Example: 1.4.5.3 → 1453"
+        echo "Version argument must be a positive integer."
         return 1
     fi
     
@@ -307,63 +302,7 @@ cmd_setup() {
     echo ""
 }
 
-#-------------------------------------------------------------------------------
-# Command: test
-# Run integration tests
-#-------------------------------------------------------------------------------
-cmd_test() {
-    print_header "Running Integration Tests"
-    
-    local test_failed=false
-    
-    echo "1. Building Docker image..."
-    if docker_compose build --quiet 2>/dev/null || docker_compose build; then
-        print_success "Build successful"
-    else
-        print_error "Build failed"
-        return 1
-    fi
-    
-    echo ""
-    echo "2. Starting container..."
-    if docker_compose up -d; then
-        print_success "Container started"
-    else
-        print_error "Failed to start container"
-        return 1
-    fi
-    
-    echo ""
-    echo "3. Waiting for services to initialize (30s)..."
-    sleep 30
-    
-    echo ""
-    echo "4. Checking service health..."
-    if docker_exec /terraria/scripts/healthcheck.sh; then
-        print_success "All services healthy"
-    else
-        print_error "Health check failed"
-        echo ""
-        echo "Recent logs:"
-        sudo docker logs --tail=50 "${CONTAINER_NAME}"
-        test_failed=true
-    fi
-    
-    echo ""
-    echo "5. Stopping container..."
-    docker_compose down --quiet 2>/dev/null || docker_compose down
-    print_success "Container stopped"
-    
-    echo ""
-    if [ "$test_failed" = true ]; then
-        print_error "Tests failed!"
-        return 1
-    else
-        echo -e "${GREEN}╔═══════════════════════════════════════════════════════════╗${NC}"
-        echo -e "${GREEN}║           All Tests Passed!                               ║${NC}"
-        echo -e "${GREEN}╚═══════════════════════════════════════════════════════════╝${NC}"
-    fi
-}
+
 
 #-------------------------------------------------------------------------------
 # Command: clean

@@ -151,7 +151,7 @@ The `./server.sh` script provides all management functionality:
 
 | Command | Description |
 |---------|-------------|
-| `./server.sh update [version]` | Update Terraria to a new version (e.g., 1453 for v1.4.5.3) |
+| `./server.sh update <version>` | Update Terraria to a new version (e.g., 1453 for v1.4.5.3) |
 | `./server.sh help` | Show all available commands with examples |
 
 ## Configuration
@@ -314,7 +314,7 @@ You can send any Terraria server command using `./server.sh command <cmd>`:
 
 ## Troubleshooting
 
-Quick fixes for common issues. For detailed troubleshooting, see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+Quick fixes for common issues. For detailed troubleshooting, see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOULING.md).
 
 | Problem | Quick Fix |
 |---------|-----------|
@@ -369,7 +369,7 @@ TerrariaSteamDeckServer/
 │   ├── logs/                   # Server logs
 │   └── config/                 # Runtime configuration
 ├── docs/                       # Documentation
-├── tests/                      # Validation scripts
+├── scripts/
 ├── server.sh                   # Main CLI management script
 ├── install.sh                  # Quick install script (Steam Deck)
 ├── .env.example                # Configuration template
@@ -382,22 +382,14 @@ TerrariaSteamDeckServer/
 # Using server.sh (recommended)
 ./server.sh build               # Build with cache
 ./server.sh build --no-cache    # Fresh build without cache
-./server.sh update              # Rebuild with current version (uses --no-cache)
+./server.sh update 1453             # Rebuild with specific version (uses --no-cache)
 
 # Using docker compose directly
 sudo docker compose -f docker/docker-compose.yml --env-file .env build
 sudo docker compose -f docker/docker-compose.yml --env-file .env build --no-cache
 ```
 
-### Running Tests
 
-```bash
-# Validation test (file structure, syntax)
-./tests/validate.sh
-
-# Full integration test (build, start, health check, stop)
-./server.sh test
-```
 
 ## Steam Deck Notes
 
